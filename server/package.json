@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "echo 'No build needed - using ts-node'",
-    "start": "npx ts-node src/index.ts",
+    "start": "npx ts-node --transpile-only src/index.ts",
     "dev": "nodemon src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -44,5 +44,16 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
+  },
+  "ts-node": {
+    "transpileOnly": true,
+    "files": true,
+    "compilerOptions": {
+      "module": "commonjs",
+      "target": "es2020",
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "skipLibCheck": true
+    }
   }
 }
