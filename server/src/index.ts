@@ -22,6 +22,7 @@ const PRODUCTION_URLS = [
     'https://introvirght.vercel.app',
     'https://introvirght-frontend.vercel.app',
     'https://introvirght-app-git-main-failledpupils-projects.vercel.app',
+    'https://introvirght-app.vercel.app',
     'https://your-custom-domain.com'
 ];
 
