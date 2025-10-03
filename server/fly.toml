@@ -1,4 +1,4 @@
-app = "introvirght-backend"
+app = "introvirght-app-backend"
 primary_region = "iad"
 
 [build]
