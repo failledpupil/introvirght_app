@@ -10,9 +10,13 @@ export const initializeDatabase = async (): Promise<Database> => {
   }
 
   try {
-    // Open SQLite database
+    // Open SQLite database - use in-memory for serverless environments
+    const filename = process.env.NODE_ENV === 'production' && process.env.VERCEL 
+      ? ':memory:' 
+      : path.join(__dirname, '../../introvirght.db');
+    
     db = await open({
-      filename: path.join(__dirname, '../../introvirght.db'),
+      filename,
       driver: sqlite3.Database,
     });
 
