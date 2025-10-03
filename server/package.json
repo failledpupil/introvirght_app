@@ -4,8 +4,8 @@
   "description": "Backend API for Introvirght social platform",
   "main": "dist/index.js",
   "scripts": {
-    "build": "echo 'No build needed - using ts-node'",
-    "start": "node -r ts-node/register src/index.ts",
+    "build": "tsc --outDir dist --skipLibCheck",
+    "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
