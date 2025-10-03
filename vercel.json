@@ -4,6 +4,6 @@
   "installCommand": "cd introvirght && npm install",
   "framework": "vite",
   "env": {
-    "VITE_API_BASE_URL": "https://introvirghtf-e97vrnacf-failledpupils-projects.vercel.app/api"
+    "VITE_API_BASE_URL": "https://introvirghtf-h83qdaegg-failledpupils-projects.vercel.app/api"
   }
 }
