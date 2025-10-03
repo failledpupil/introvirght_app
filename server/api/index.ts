@@ -45,12 +45,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         success: true,
         message: 'User registered successfully',
-        user: {
-          id: 'demo-user-' + Date.now(),
-          username: body.username || 'demo-user',
-          email: body.email || 'demo@example.com'
-        },
-        token: 'demo-jwt-token-' + Date.now()
+        data: {
+          user: {
+            id: 'demo-user-' + Date.now(),
+            username: body.username || 'demo-user',
+            email: body.email || 'demo@example.com',
+            bio: body.bio || ''
+          },
+          token: 'demo-jwt-token-' + Date.now()
+        }
       });
     }
 
@@ -61,12 +64,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         success: true,
         message: 'Login successful',
-        user: {
-          id: 'demo-user-123',
-          username: body.username || 'demo-user',
-          email: body.email || 'demo@example.com'
-        },
-        token: 'demo-jwt-token-' + Date.now()
+        data: {
+          user: {
+            id: 'demo-user-123',
+            username: body.username || 'demo-user',
+            email: body.email || 'demo@example.com',
+            bio: ''
+          },
+          token: 'demo-jwt-token-' + Date.now()
+        }
       });
     }
 
