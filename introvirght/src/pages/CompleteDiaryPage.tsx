@@ -53,8 +53,9 @@ const CompleteDiaryPage: React.FC = () => {
 
       // Get the actual auth token from localStorage, fallback to test token
       const authToken = localStorage.getItem('authToken') || 'test-bypass-token';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
-      const response = await fetch('http://localhost:3001/api/diary', {
+      const response = await fetch(`${apiBaseUrl}/diary`, {
         headers: {
           'Authorization': `Bearer ${authToken}`,
         },
@@ -83,11 +84,12 @@ const CompleteDiaryPage: React.FC = () => {
     try {
       // Get the actual auth token from localStorage, fallback to test token
       const authToken = localStorage.getItem('authToken') || 'test-bypass-token';
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
       console.log('Creating diary entry with token:', authToken ? 'token exists' : 'no token');
       console.log('Entry data:', entryData);
 
-      const response = await fetch('http://localhost:3001/api/diary', {
+      const response = await fetch(`${apiBaseUrl}/diary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,11 +138,19 @@ const CompleteDiaryPage: React.FC = () => {
     <Layout>
       <div className="space-y-8">
         {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-3xl font-serif font-semibold text-sage-700">
+        <div className="text-center" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <h1 style={{
+            fontSize: 'var(--text-4xl)',
+            fontWeight: '600',
+            color: 'var(--primary)',
+            margin: 0
+          }}>
             My Diary
           </h1>
-          <p className="text-stone-600 max-w-2xl mx-auto">
+          <p className="content-container" style={{
+            color: 'var(--neutral-600)',
+            margin: '0 auto'
+          }}>
             Your private space for reflection, growth, and mindful journaling.
           </p>
         </div>
@@ -188,13 +198,26 @@ const CompleteDiaryPage: React.FC = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sage-500"></div>
           </div>
         ) : error ? (
-          <div className="text-center py-16">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
-              <h3 className="text-lg font-semibold text-red-800 mb-2">Error</h3>
-              <p className="text-red-600">{error}</p>
+          <div className="text-center" style={{ paddingTop: 'var(--space-16)', paddingBottom: 'var(--space-16)' }}>
+            <div className="card" style={{ 
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              padding: 'var(--space-6)',
+              maxWidth: '28rem',
+              margin: '0 auto'
+            }}>
+              <h3 style={{
+                fontSize: 'var(--text-lg)',
+                fontWeight: '600',
+                color: '#991b1b',
+                marginBottom: 'var(--space-2)'
+              }}>
+                Error
+              </h3>
+              <p style={{ color: '#dc2626', marginBottom: 'var(--space-4)' }}>{error}</p>
               <button 
                 onClick={loadEntries}
-                className="mt-4 btn-primary"
+                className="btn-primary"
               >
                 Try Again
               </button>

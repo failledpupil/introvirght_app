@@ -123,3 +123,4 @@ Thumbs.db
 
 # Test files (keep the HTML test files for now)
 # test-*.html
+.vercel
