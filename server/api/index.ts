@@ -36,14 +36,42 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  // Authentication endpoints
+  if (req.url === '/api/auth/register' && req.method === 'POST') {
+    return res.status(200).json({
+      success: true,
+      message: 'User registered successfully',
+      user: {
+        id: 'demo-user-' + Date.now(),
+        username: req.body?.username || 'demo-user',
+        email: req.body?.email || 'demo@example.com'
+      },
+      token: 'demo-jwt-token-' + Date.now()
+    });
+  }
+
+  if (req.url === '/api/auth/login' && req.method === 'POST') {
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      user: {
+        id: 'demo-user-123',
+        username: req.body?.username || 'demo-user',
+        email: req.body?.email || 'demo@example.com'
+      },
+      token: 'demo-jwt-token-' + Date.now()
+    });
+  }
+
   // Simple API endpoints for testing
   if (req.url?.startsWith('/api/')) {
     return res.status(200).json({
       success: true,
-      message: 'API is working',
+      message: 'API endpoint working',
       endpoint: req.url,
       method: req.method,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      note: 'This is a demo API - data is not persisted'
     });
   }
 
