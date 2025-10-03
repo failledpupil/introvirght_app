@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { DiaryEntryModel, MoodType, type CreateDiaryEntryData, type UpdateDiaryEntryData } from '../models/DiaryEntry';
-import { VectorService } from '../services/vectorService';
+import { vectorService } from '../services/vectorService';
 
 export interface CreateDiaryEntryRequest {
   title?: string;
@@ -87,17 +87,26 @@ export class DiaryController {
             entryData.goals
           ].filter(Boolean).join(' ');
 
-          const vectorId = await VectorService.storeVector(
-            userId,
+          // Extract tags from content for metadata
+          const tags = extractTagsFromContent(fullContent);
+
+          const success = await vectorService.storeEntryVector(
             diaryEntry.id,
+            userId,
             fullContent,
-            entryData.mood,
-            diaryEntry.createdAt
+            {
+              title: entryData.title,
+              mood: entryData.mood,
+              tags,
+              sentiment: calculateSentiment(fullContent)
+            }
           );
 
-          // Update diary entry with vector ID
-          await DiaryEntryModel.updateVectorId(diaryEntry.id, userId, vectorId);
-          console.log('Vector embedding created successfully for entry:', diaryEntry.id);
+          if (success) {
+            console.log('✅ Vector embedding created successfully for entry:', diaryEntry.id);
+          } else {
+            console.log('⚠️ Vector embedding creation failed for entry:', diaryEntry.id);
+          }
         } catch (vectorError) {
           console.error('Failed to create vector embedding:', vectorError);
           // This is non-blocking, so diary entry creation still succeeds
@@ -300,8 +309,8 @@ export class DiaryController {
         return;
       }
 
-      // Update vector embedding if entry has one
-      if (updatedEntry.vectorId) {
+      // Update vector embedding (async, non-blocking)
+      setImmediate(async () => {
         try {
           const fullContent = [
             updatedEntry.title,
@@ -311,17 +320,32 @@ export class DiaryController {
             updatedEntry.goals
           ].filter(Boolean).join(' ');
 
-          await VectorService.updateVector(
-            updatedEntry.vectorId,
+          // Extract tags from content for metadata
+          const tags = extractTagsFromContent(fullContent);
+
+          // Delete old vector and create new one (DataStax doesn't have direct update)
+          await vectorService.deleteEntryVector(updatedEntry.id);
+          
+          const success = await vectorService.storeEntryVector(
+            updatedEntry.id,
+            req.user!.id,
             fullContent,
-            updatedEntry.mood,
-            updatedEntry.updatedAt
+            {
+              title: updatedEntry.title,
+              mood: updatedEntry.mood,
+              tags,
+              sentiment: calculateSentiment(fullContent)
+            }
           );
+
+          if (success) {
+            console.log('✅ Vector embedding updated successfully for entry:', updatedEntry.id);
+          }
         } catch (vectorError) {
           console.error('Failed to update vector embedding:', vectorError);
           // Continue without vector update - don't fail the diary entry update
         }
-      }
+      });
 
       res.json({
         success: true,
@@ -397,14 +421,13 @@ export class DiaryController {
         return;
       }
 
-      // Delete associated vector if it exists
-      if (entry.vectorId) {
-        try {
-          await VectorService.deleteVector(entry.vectorId);
-        } catch (vectorError) {
-          console.error('Failed to delete vector embedding:', vectorError);
-          // Continue - diary entry is already deleted
-        }
+      // Delete associated vector
+      try {
+        await vectorService.deleteEntryVector(entry.id);
+        console.log('✅ Vector embedding deleted for entry:', entry.id);
+      } catch (vectorError) {
+        console.error('Failed to delete vector embedding:', vectorError);
+        // Continue - diary entry is already deleted
       }
 
       res.json({
@@ -494,17 +517,24 @@ export class DiaryController {
         return;
       }
 
-      // Search similar entries using vector similarity
-      const similarVectors = await VectorService.searchSimilar(req.user.id, query, limit);
+      // Search similar entries using DataStax vector similarity
+      const similarEntries = await vectorService.searchSimilarEntries(query, {
+        userId: req.user.id,
+        limit,
+        threshold: 0.6 // Lower threshold for broader search results
+      });
       
-      // Get the actual diary entries
-      const entryIds = similarVectors.map(vector => vector.entryId);
+      // Get the actual diary entries from PostgreSQL
       const entries = [];
       
-      for (const entryId of entryIds) {
-        const entry = await DiaryEntryModel.findById(entryId, req.user.id);
+      for (const vectorEntry of similarEntries) {
+        const entry = await DiaryEntryModel.findById(vectorEntry.entryId, req.user.id);
         if (entry) {
-          entries.push(entry);
+          // Add similarity score to the entry for frontend display
+          entries.push({
+            ...entry,
+            similarity: (vectorEntry as any).similarity || 0
+          });
         }
       }
 
@@ -545,22 +575,36 @@ export class DiaryController {
         return;
       }
 
-      const stats = await VectorService.getUserVectorStats(req.user.id);
+      const insights = await vectorService.getUserInsights(req.user.id);
+
+      if (!insights) {
+        res.json({
+          success: true,
+          data: {
+            totalEntries: 0,
+            overallMood: 'neutral',
+            sentimentScore: 0,
+            topTopics: [],
+            moodDistribution: {},
+            insights: ['Start writing diary entries to see personalized insights!']
+          }
+        });
+        return;
+      }
 
       // Generate simple insights based on the data
-      const insights = {
-        totalEntries: stats.totalVectors,
-        overallMood: stats.averageSentiment > 0.1 ? 'positive' : 
-                     stats.averageSentiment < -0.1 ? 'negative' : 'neutral',
-        sentimentScore: Math.round(stats.averageSentiment * 100) / 100,
-        topTopics: stats.topTopics.slice(0, 5),
-        moodDistribution: stats.moodDistribution,
-        insights: generateInsightMessages(stats)
+      const processedInsights = {
+        totalEntries: insights.totalEntries,
+        overallMood: insights.averageWordCount > 100 ? 'expressive' : 'concise',
+        sentimentScore: 0, // Will be enhanced with sentiment analysis
+        topTopics: insights.commonTags.slice(0, 5),
+        moodDistribution: insights.moodDistribution,
+        insights: generateInsightMessages(insights)
       };
 
       res.json({
         success: true,
-        data: insights,
+        data: processedInsights,
       });
     } catch (error) {
       console.error('Get insights error:', error);
@@ -569,6 +613,73 @@ export class DiaryController {
         error: {
           code: 'INSIGHTS_FAILED',
           message: 'Failed to generate insights',
+        },
+      });
+    }
+  }
+
+  /**
+   * Get related entries for a specific diary entry
+   * GET /api/diary/:id/related
+   */
+  static async getRelatedEntries(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: {
+            code: 'NOT_AUTHENTICATED',
+            message: 'User not authenticated',
+          },
+        });
+        return;
+      }
+
+      const { id } = req.params;
+      const limit = Math.min(parseInt(req.query.limit as string) || 3, 10);
+
+      if (!id) {
+        res.status(400).json({
+          success: false,
+          error: {
+            code: 'MISSING_ENTRY_ID',
+            message: 'Diary entry ID is required',
+          },
+        });
+        return;
+      }
+
+      // Get related entries using vector similarity
+      const relatedVectorEntries = await vectorService.getRelatedEntries(id, req.user.id, limit);
+      
+      // Get the actual diary entries from PostgreSQL
+      const relatedEntries = [];
+      
+      for (const vectorEntry of relatedVectorEntries) {
+        const entry = await DiaryEntryModel.findById(vectorEntry.entryId, req.user.id);
+        if (entry) {
+          relatedEntries.push({
+            ...entry,
+            similarity: (vectorEntry as any).similarity || 0
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        data: {
+          entryId: id,
+          relatedEntries,
+          totalResults: relatedEntries.length,
+        },
+      });
+    } catch (error) {
+      console.error('Get related entries error:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'FETCH_RELATED_ENTRIES_FAILED',
+          message: 'Failed to fetch related entries',
         },
       });
     }
@@ -639,38 +750,99 @@ function getMoodIcon(mood: MoodType): string {
 }
 
 /**
+ * Extract tags from diary content
+ */
+function extractTagsFromContent(content: string): string[] {
+  const commonWords = new Set([
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+    'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your', 'yours',
+    'he', 'him', 'his', 'himself', 'she', 'her', 'hers', 'herself', 'it', 'its', 'itself',
+    'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this',
+    'that', 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+    'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'will', 'would', 'should',
+    'could', 'can', 'may', 'might', 'must', 'shall', 'today', 'yesterday', 'tomorrow'
+  ]);
+
+  const words = content.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 3 && !commonWords.has(word));
+
+  // Count word frequency
+  const wordCount: Record<string, number> = {};
+  words.forEach(word => {
+    wordCount[word] = (wordCount[word] || 0) + 1;
+  });
+
+  // Return top 5 most frequent words as tags
+  return Object.entries(wordCount)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([word]) => word);
+}
+
+/**
+ * Calculate sentiment score (-1 to 1)
+ */
+function calculateSentiment(text: string): number {
+  const positiveWords = [
+    'happy', 'joy', 'love', 'wonderful', 'amazing', 'great', 'good', 'excellent',
+    'fantastic', 'beautiful', 'peaceful', 'calm', 'grateful', 'thankful', 'blessed',
+    'excited', 'hopeful', 'optimistic', 'confident', 'proud', 'satisfied', 'content'
+  ];
+
+  const negativeWords = [
+    'sad', 'angry', 'hate', 'terrible', 'awful', 'bad', 'horrible', 'disgusting',
+    'depressed', 'anxious', 'worried', 'stressed', 'frustrated', 'disappointed',
+    'lonely', 'scared', 'afraid', 'nervous', 'upset', 'annoyed', 'irritated'
+  ];
+
+  const words = text.toLowerCase().split(/\s+/);
+  let positiveCount = 0;
+  let negativeCount = 0;
+
+  words.forEach(word => {
+    if (positiveWords.includes(word)) positiveCount++;
+    if (negativeWords.includes(word)) negativeCount++;
+  });
+
+  const totalSentimentWords = positiveCount + negativeCount;
+  if (totalSentimentWords === 0) return 0;
+
+  return (positiveCount - negativeCount) / totalSentimentWords;
+}
+
+/**
  * Generate insight messages based on user's diary patterns
  */
 function generateInsightMessages(stats: any): string[] {
   const insights: string[] = [];
 
-  // Sentiment insights
-  if (stats.averageSentiment > 0.3) {
-    insights.push("Your diary reflects a generally positive outlook. Keep nurturing this optimistic mindset!");
-  } else if (stats.averageSentiment < -0.3) {
-    insights.push("Your entries show some challenging emotions. Remember, it's okay to feel difficult emotions - they're part of growth.");
-  } else {
-    insights.push("Your emotional tone is balanced, showing both ups and downs - a natural part of life's journey.");
+  // Entry count insights
+  if (stats.totalEntries > 10) {
+    insights.push("You're building a wonderful habit of regular reflection. This consistency will serve you well!");
+  } else if (stats.totalEntries > 0) {
+    insights.push("You're starting your journaling journey. Each entry is a step toward greater self-awareness.");
   }
 
   // Topic insights
-  if (stats.topTopics.length > 0) {
-    insights.push(`You frequently write about: ${stats.topTopics.slice(0, 3).join(', ')}. These seem to be important themes in your life.`);
+  if (stats.commonTags && stats.commonTags.length > 0) {
+    insights.push(`You frequently write about: ${stats.commonTags.slice(0, 3).join(', ')}. These seem to be important themes in your life.`);
   }
 
   // Mood distribution insights
-  const moodEntries = Object.entries(stats.moodDistribution);
+  const moodEntries = Object.entries(stats.moodDistribution || {});
   if (moodEntries.length > 0) {
     const topMood = moodEntries.reduce((a, b) => (a[1] as number) > (b[1] as number) ? a : b);
     insights.push(`Your most common mood is "${topMood[0]}" - this gives insight into your emotional patterns.`);
   }
 
-  // Entry count insights
-  if (stats.totalVectors > 10) {
-    insights.push("You're building a wonderful habit of regular reflection. This consistency will serve you well!");
-  } else if (stats.totalVectors > 0) {
-    insights.push("You're starting your journaling journey. Each entry is a step toward greater self-awareness.");
+  // Word count insights
+  if (stats.averageWordCount > 200) {
+    insights.push("You tend to write detailed, expressive entries. This depth of reflection is valuable for personal growth.");
+  } else if (stats.averageWordCount > 0) {
+    insights.push("You prefer concise entries. Sometimes brief reflections can be just as powerful as longer ones.");
   }
 
-  return insights;
+  return insights.length > 0 ? insights : ['Keep writing to discover patterns and insights about yourself!'];
 }

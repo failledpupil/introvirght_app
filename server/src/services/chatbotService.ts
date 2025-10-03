@@ -1,4 +1,4 @@
-import { VectorService } from './vectorService';
+import { vectorService } from './vectorService';
 import { DiaryEntryModel } from '../models/DiaryEntry';
 import { getDatabase } from '../config/database';
 import { OpenAIService, type OpenAIMessage } from './openaiService';
@@ -27,33 +27,41 @@ export class ChatbotService {
    * Generate AI response based on user message and diary context
    */
   static async generateResponse(userId: string, userMessage: string): Promise<ChatResponse> {
-    // Get relevant diary entries using vector similarity
-    const similarVectors = await VectorService.searchSimilar(userId, userMessage, 3);
+    console.log(`🤖 Generating AI response for user ${userId}: "${userMessage.substring(0, 50)}..."`);
+    
+    // Get diary context using DataStax vector search
+    const diaryContext = await vectorService.getDiaryContext(userMessage, userId, 3);
     
     // Get the actual diary entries for context
     const relatedEntries = [];
-    for (const vector of similarVectors) {
-      const entry = await DiaryEntryModel.findById(vector.entryId, userId);
+    for (const vectorEntry of diaryContext.relevantEntries) {
+      const entry = await DiaryEntryModel.findById(vectorEntry.entryId, userId);
       if (entry) {
         relatedEntries.push({
           id: entry.id,
           date: entry.createdAt.toDateString(),
           mood: entry.mood,
           content: entry.content.substring(0, 200) + (entry.content.length > 200 ? '...' : ''),
-          sentiment: vector.metadata.sentiment
+          similarity: (vectorEntry as any).similarity || 0,
+          themes: vectorEntry.metadata?.tags || []
         });
       }
     }
 
+    console.log(`📚 Found ${relatedEntries.length} related diary entries for context`);
+
     // Generate contextual response
-    const aiResponse = await this.generateContextualResponse(userMessage, relatedEntries, userId);
+    const aiResponse = await this.generateContextualResponse(userMessage, relatedEntries, diaryContext, userId);
     
     // Save both messages to chat history
     await this.saveChatMessage(userId, 'user', userMessage);
     const assistantChatMessage = await this.saveChatMessage(userId, 'assistant', aiResponse, {
       relatedEntries: relatedEntries.map(e => e.id),
-      sentiment: this.analyzeSentiment(userMessage)
+      themes: diaryContext.themes,
+      similarityScores: diaryContext.similarityScores
     });
+
+    console.log(`✅ Generated AI response with ${relatedEntries.length} diary context entries`);
 
     return {
       message: assistantChatMessage,
@@ -67,17 +75,18 @@ export class ChatbotService {
   private static async generateContextualResponse(
     userMessage: string, 
     relatedEntries: any[], 
+    diaryContext: any,
     userId: string
   ): Promise<string> {
     try {
-      // Get user's overall patterns
-      const stats = await VectorService.getUserVectorStats(userId);
+      // Get user's overall insights from DataStax
+      const insights = await vectorService.getUserInsights(userId);
       
       // Get recent conversation history for context
       const recentMessages = await this.getChatHistory(userId, 6);
       
-      // Create system prompt with user context
-      const systemPrompt = OpenAIService.createDiaryCompanionSystemPrompt(stats, relatedEntries);
+      // Create enhanced system prompt with diary context
+      const systemPrompt = this.createEnhancedSystemPrompt(insights, relatedEntries, diaryContext);
       
       // Build conversation messages
       const messages: OpenAIMessage[] = [
@@ -109,14 +118,79 @@ export class ChatbotService {
       console.error('OpenAI response generation failed:', error);
       
       // Fallback to rule-based response if OpenAI fails
-      return this.generateFallbackResponse(userMessage, relatedEntries);
+      return this.generateFallbackResponse(userMessage, relatedEntries, diaryContext);
     }
+  }
+
+  /**
+   * Create enhanced system prompt with diary context
+   */
+  private static createEnhancedSystemPrompt(
+    insights: any,
+    relatedEntries: any[],
+    diaryContext: any
+  ): string {
+    let prompt = `You are a compassionate AI diary companion. You have access to the user's diary entries and can provide personalized, empathetic responses based on their writing patterns and experiences.
+
+Your role is to:
+- Be supportive, understanding, and non-judgmental
+- Help users reflect on their thoughts and feelings
+- Provide gentle insights based on their diary patterns
+- Encourage personal growth and self-awareness
+- Ask thoughtful questions to deepen reflection
+
+`;
+
+    // Add user insights if available
+    if (insights && insights.totalEntries > 0) {
+      prompt += `User Profile:
+- Total diary entries: ${insights.totalEntries}
+- Average entry length: ${insights.averageWordCount} words
+- Common themes: ${insights.commonTags?.slice(0, 5).join(', ') || 'None yet'}
+- Mood patterns: ${Object.keys(insights.moodDistribution || {}).join(', ') || 'Various'}
+
+`;
+    }
+
+    // Add related diary context if available
+    if (relatedEntries.length > 0) {
+      prompt += `Relevant diary context for this conversation:
+`;
+      relatedEntries.forEach((entry, index) => {
+        prompt += `${index + 1}. Entry from ${entry.date} (mood: ${entry.mood}):
+   "${entry.content}"
+   Themes: ${entry.themes?.join(', ') || 'None'}
+   
+`;
+      });
+    }
+
+    // Add conversation themes
+    if (diaryContext.themes && diaryContext.themes.length > 0) {
+      prompt += `Current conversation themes: ${diaryContext.themes.join(', ')}
+
+`;
+    }
+
+    prompt += `Guidelines:
+- Keep responses warm, personal, and conversational
+- Reference diary entries naturally when relevant
+- Ask follow-up questions to encourage deeper reflection
+- Validate emotions and experiences
+- Suggest gentle insights or patterns you notice
+- Keep responses concise but meaningful (2-4 sentences)
+- Use "I notice..." or "It seems like..." when making observations
+- Never be prescriptive or give medical advice
+
+Respond as a caring friend who knows their diary well.`;
+
+    return prompt;
   }
 
   /**
    * Fallback response generation when OpenAI is unavailable
    */
-  private static generateFallbackResponse(userMessage: string, relatedEntries: any[]): string {
+  private static generateFallbackResponse(userMessage: string, relatedEntries: any[], diaryContext?: any): string {
     const lowerMessage = userMessage.toLowerCase();
     
     // Greeting responses
@@ -133,9 +207,11 @@ export class ChatbotService {
       return `I'd love to help you explore your feelings. Your diary shows you experience a range of emotions, which is completely natural. What specific mood or feeling would you like to talk about?`;
     }
     
-    // Pattern recognition
+    // Pattern recognition with themes
     if (relatedEntries.length > 0) {
-      return `I found some related entries in your diary from ${relatedEntries[0].date}. This seems to be something you've reflected on before. What aspects of this would you like to explore further?`;
+      const themes = diaryContext?.themes || [];
+      const themeText = themes.length > 0 ? ` I notice themes around ${themes.slice(0, 2).join(' and ')}.` : '';
+      return `I found some related entries in your diary from ${relatedEntries[0].date}.${themeText} This seems to be something you've reflected on before. What aspects of this would you like to explore further?`;
     }
     
     // Default supportive response
@@ -148,7 +224,23 @@ export class ChatbotService {
    * Analyze sentiment of user message
    */
   private static analyzeSentiment(message: string): number {
-    return VectorService.calculateSentiment(message);
+    // Simple sentiment analysis - can be enhanced with the embedding service
+    const positiveWords = ['happy', 'joy', 'love', 'wonderful', 'amazing', 'great', 'good', 'excellent'];
+    const negativeWords = ['sad', 'angry', 'hate', 'terrible', 'awful', 'bad', 'horrible', 'depressed'];
+    
+    const words = message.toLowerCase().split(/\s+/);
+    let positiveCount = 0;
+    let negativeCount = 0;
+
+    words.forEach(word => {
+      if (positiveWords.includes(word)) positiveCount++;
+      if (negativeWords.includes(word)) negativeCount++;
+    });
+
+    const totalSentimentWords = positiveCount + negativeCount;
+    if (totalSentimentWords === 0) return 0;
+
+    return (positiveCount - negativeCount) / totalSentimentWords;
   }
 
   /**
@@ -257,12 +349,20 @@ export class ChatbotService {
     const topTopics: string[] = [];
 
     if (userMessages.length > 0) {
-      const sentiments = userMessages.map(msg => VectorService.calculateSentiment(msg.content));
+      const sentiments = userMessages.map(msg => this.analyzeSentiment(msg.content));
       averageSentiment = sentiments.reduce((sum, s) => sum + s, 0) / sentiments.length;
 
-      // Extract topics from user messages
+      // Extract topics from user messages using simple keyword extraction
       const allContent = userMessages.map(msg => msg.content).join(' ');
-      topTopics.push(...VectorService.extractTopics(allContent).slice(0, 5));
+      const words = allContent.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+      const wordCount: Record<string, number> = {};
+      words.forEach(word => {
+        wordCount[word] = (wordCount[word] || 0) + 1;
+      });
+      topTopics.push(...Object.entries(wordCount)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([word]) => word));
     }
 
     return {

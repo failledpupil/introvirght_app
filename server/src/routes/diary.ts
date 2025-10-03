@@ -86,6 +86,12 @@ router.get('/', DiaryController.getEntries);
 router.post('/', DiaryController.createEntry);
 
 /**
+ * GET /api/diary/:id/related
+ * Get related entries for a specific diary entry
+ */
+router.get('/:id/related', DiaryController.getRelatedEntries);
+
+/**
  * GET /api/diary/:id
  * Get a specific diary entry (owner only)
  */

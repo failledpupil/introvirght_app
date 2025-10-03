@@ -34,6 +34,14 @@ export interface ConversationStats {
   topTopics: string[];
 }
 
+export interface PersonalInsight {
+  type: 'pattern' | 'mood' | 'growth' | 'theme';
+  title: string;
+  description: string;
+  confidence: number;
+  relatedEntries?: string[];
+}
+
 export class ChatService {
   /**
    * Send a message to the AI chatbot
@@ -187,6 +195,47 @@ export class ChatService {
         return {
           success: false,
           error: errorData.error || { code: 'FETCH_CONVERSATION_STATS_FAILED', message: 'Failed to fetch conversation stats' },
+        };
+      }
+
+      const data = await response.json();
+      return {
+        success: true,
+        data: data.data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'NETWORK_ERROR',
+          message: 'Unable to connect to server',
+        },
+      };
+    }
+  }
+
+  /**
+   * Get personalized insights based on diary patterns
+   */
+  static async getPersonalInsights(): Promise<ApiResponse<{
+    insights: PersonalInsight[];
+    totalEntries: number;
+    analysisDate: string;
+  }>> {
+    try {
+      // Get the actual auth token from localStorage, fallback to test token
+      const token = localStorage.getItem('authToken') || 'test-bypass-token';
+      const response = await fetch(`${API_BASE_URL}/chat/insights`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return {
+          success: false,
+          error: errorData.error || { code: 'FETCH_PERSONAL_INSIGHTS_FAILED', message: 'Failed to fetch personal insights' },
         };
       }
 

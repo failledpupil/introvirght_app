@@ -1,332 +1,312 @@
-import { v4 as uuidv4 } from 'uuid';
-import { getDatabase } from '../config/database';
+import { dataStaxService, VectorEntry, SemanticSearchResult } from '../config/datastax';
+import { embeddingService } from './embeddingService';
+import { DiaryEntry } from '../models/DiaryEntry';
 
-export interface DiaryVector {
-  id: string;
-  userId: string;
-  entryId: string;
-  content: string;
-  embedding: number[];
-  metadata: {
-    date: string;
-    mood: string;
-    topics: string[];
-    sentiment: number;
-    wordCount: number;
-  };
-  createdAt: Date;
+export interface DiaryContext {
+  relevantEntries: VectorEntry[];
+  similarityScores: number[];
+  themes: string[];
+  timeRange: { start: Date; end: Date };
 }
 
-export interface EmbeddingResponse {
-  embedding: number[];
-  usage: {
-    prompt_tokens: number;
-    total_tokens: number;
-  };
+export interface VectorSearchOptions {
+  userId: string;
+  limit?: number;
+  threshold?: number;
+  timeRange?: { start: Date; end: Date };
+  tags?: string[];
+  mood?: string;
 }
 
 export class VectorService {
   /**
-   * Generate embedding for text content
-   * Uses simple hash-based embedding for now (OpenAI integration available but disabled for stability)
+   * Store diary entry as vector embedding
    */
-  static async generateEmbedding(text: string): Promise<number[]> {
-    // Use simple hash-based embedding for reliability
-    const words = text.toLowerCase().split(/\s+/);
-    const embedding = new Array(384).fill(0); // 384-dimensional embedding
-
-    // Simple hash-based embedding for demo purposes
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i];
-      for (let j = 0; j < word.length; j++) {
-        const charCode = word.charCodeAt(j);
-        const index = (charCode + i + j) % 384;
-        embedding[index] += Math.sin(charCode * 0.1) * 0.1;
+  async storeEntryVector(
+    entryId: string,
+    userId: string,
+    content: string,
+    metadata: {
+      title?: string;
+      mood?: string;
+      tags?: string[];
+      sentiment?: number;
+    } = {}
+  ): Promise<boolean> {
+    try {
+      console.log(`🔄 Generating embedding for entry ${entryId}`);
+      
+      // Generate embedding for the content
+      const embeddingResult = await embeddingService.generateEmbedding(content);
+      
+      if (!embeddingResult.success) {
+        console.error(`Failed to generate embedding: ${embeddingResult.error}`);
+        return false;
       }
-    }
 
-    // Normalize the embedding
-    const magnitude = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
-    return embedding.map(val => magnitude > 0 ? val / magnitude : 0);
+      // Extract key phrases for enhanced metadata
+      const keyPhrases = embeddingService.extractKeyPhrases(content);
+      
+      // Store in DataStax
+      const success = await dataStaxService.storeEmbedding(
+        entryId,
+        userId,
+        content,
+        embeddingResult.embedding,
+        {
+          ...metadata,
+          tags: [...(metadata.tags || []), ...keyPhrases.slice(0, 5)], // Add key phrases as tags
+          wordCount: content.split(' ').length
+        }
+      );
+
+      if (success) {
+        console.log(`✅ Stored vector for entry ${entryId} (${embeddingResult.tokens} tokens)`);
+      }
+
+      return success;
+    } catch (error) {
+      console.error('Error storing entry vector:', error);
+      return false;
+    }
   }
 
   /**
-   * Extract topics from text content
+   * Search for semantically similar diary entries
    */
-  static extractTopics(text: string): string[] {
-    const commonWords = new Set([
-      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-      'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you', 'your', 'yours',
-      'he', 'him', 'his', 'himself', 'she', 'her', 'hers', 'herself', 'it', 'its', 'itself',
-      'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 'this',
-      'that', 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
-      'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'will', 'would', 'should',
-      'could', 'can', 'may', 'might', 'must', 'shall', 'today', 'yesterday', 'tomorrow'
-    ]);
+  async searchSimilarEntries(
+    query: string,
+    options: VectorSearchOptions
+  ): Promise<VectorEntry[]> {
+    try {
+      console.log(`🔍 Searching for entries similar to: "${query.substring(0, 50)}..."`);
+      
+      // Generate embedding for the search query
+      const queryEmbedding = await embeddingService.generateQueryEmbedding(query);
+      
+      if (!queryEmbedding.success) {
+        console.error(`Failed to generate query embedding: ${queryEmbedding.error}`);
+        return [];
+      }
 
-    const words = text.toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(word => word.length > 3 && !commonWords.has(word));
+      // Search for similar entries
+      const results = await dataStaxService.searchSimilar(
+        queryEmbedding.embedding,
+        options.userId,
+        options.limit || 5,
+        options.threshold || 0.7
+      );
 
-    // Count word frequency
-    const wordCount: Record<string, number> = {};
-    words.forEach(word => {
-      wordCount[word] = (wordCount[word] || 0) + 1;
+      console.log(`✅ Found ${results.length} similar entries`);
+      return results;
+    } catch (error) {
+      console.error('Error searching similar entries:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get diary context for AI companion
+   */
+  async getDiaryContext(
+    userMessage: string,
+    userId: string,
+    limit: number = 3
+  ): Promise<DiaryContext> {
+    try {
+      console.log(`🤖 Getting diary context for AI companion`);
+      
+      // Search for relevant entries
+      const relevantEntries = await this.searchSimilarEntries(userMessage, {
+        userId,
+        limit,
+        threshold: 0.6 // Lower threshold for AI context
+      });
+
+      // Extract themes from relevant entries
+      const themes = this.extractThemes(relevantEntries);
+      
+      // Calculate time range
+      const timeRange = this.calculateTimeRange(relevantEntries);
+      
+      // Get similarity scores
+      const similarityScores = relevantEntries.map((entry: any) => entry.similarity || 0);
+
+      const context: DiaryContext = {
+        relevantEntries,
+        similarityScores,
+        themes,
+        timeRange
+      };
+
+      console.log(`✅ Generated context: ${relevantEntries.length} entries, ${themes.length} themes`);
+      return context;
+    } catch (error) {
+      console.error('Error getting diary context:', error);
+      return {
+        relevantEntries: [],
+        similarityScores: [],
+        themes: [],
+        timeRange: { start: new Date(), end: new Date() }
+      };
+    }
+  }
+
+  /**
+   * Find related entries for a specific diary entry
+   */
+  async getRelatedEntries(
+    entryId: string,
+    userId: string,
+    limit: number = 3
+  ): Promise<VectorEntry[]> {
+    try {
+      // First, get the entry content to search for similar ones
+      // This would typically come from your diary service
+      // For now, we'll search based on the entry ID in the vector store
+      
+      console.log(`🔗 Finding related entries for ${entryId}`);
+      
+      // Get all user entries and find the target entry
+      const allEntries = await dataStaxService.searchSimilar(
+        [], // Empty vector - we'll use a different approach
+        userId,
+        100,
+        0
+      );
+      
+      const targetEntry = allEntries.find(entry => entry.entryId === entryId);
+      
+      if (!targetEntry) {
+        console.log(`Entry ${entryId} not found in vector store`);
+        return [];
+      }
+
+      // Search for similar entries using the target entry's vector
+      const relatedEntries = await dataStaxService.searchSimilar(
+        targetEntry.$vector,
+        userId,
+        limit + 1, // +1 because the target entry will be included
+        0.6
+      );
+
+      // Filter out the target entry itself
+      const filtered = relatedEntries.filter(entry => entry.entryId !== entryId);
+      
+      console.log(`✅ Found ${filtered.length} related entries`);
+      return filtered.slice(0, limit);
+    } catch (error) {
+      console.error('Error getting related entries:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Delete vector for a diary entry
+   */
+  async deleteEntryVector(entryId: string): Promise<boolean> {
+    try {
+      console.log(`🗑️ Deleting vector for entry ${entryId}`);
+      
+      const success = await dataStaxService.deleteEmbedding(entryId);
+      
+      if (success) {
+        console.log(`✅ Deleted vector for entry ${entryId}`);
+      }
+      
+      return success;
+    } catch (error) {
+      console.error('Error deleting entry vector:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get user insights from vector data
+   */
+  async getUserInsights(
+    userId: string,
+    timeRange?: { start: Date; end: Date }
+  ): Promise<any> {
+    try {
+      console.log(`📊 Generating insights for user ${userId}`);
+      
+      const insights = await dataStaxService.getInsights(userId, timeRange);
+      
+      if (insights) {
+        console.log(`✅ Generated insights: ${insights.totalEntries} entries analyzed`);
+      }
+      
+      return insights;
+    } catch (error) {
+      console.error('Error getting user insights:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Health check for vector services
+   */
+  async healthCheck(): Promise<{
+    datastax: boolean;
+    openai: boolean;
+    overall: boolean;
+  }> {
+    const datastaxHealth = await dataStaxService.healthCheck();
+    const openaiStatus = embeddingService.getStatus();
+    
+    return {
+      datastax: datastaxHealth,
+      openai: openaiStatus.configured,
+      overall: datastaxHealth && openaiStatus.configured
+    };
+  }
+
+  /**
+   * Extract themes from entries
+   */
+  private extractThemes(entries: VectorEntry[]): string[] {
+    const allTags: string[] = [];
+    
+    entries.forEach(entry => {
+      if (entry.metadata?.tags) {
+        allTags.push(...entry.metadata.tags);
+      }
     });
 
-    // Return top 5 most frequent words as topics
-    return Object.entries(wordCount)
+    // Count tag frequency
+    const tagCounts: { [key: string]: number } = {};
+    allTags.forEach(tag => {
+      tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+    });
+
+    // Return top themes
+    return Object.entries(tagCounts)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 5)
-      .map(([word]) => word);
+      .map(([tag]) => tag);
   }
 
   /**
-   * Calculate sentiment score (-1 to 1)
+   * Calculate time range from entries
    */
-  static calculateSentiment(text: string): number {
-    const positiveWords = [
-      'happy', 'joy', 'love', 'wonderful', 'amazing', 'great', 'good', 'excellent',
-      'fantastic', 'beautiful', 'peaceful', 'calm', 'grateful', 'thankful', 'blessed',
-      'excited', 'hopeful', 'optimistic', 'confident', 'proud', 'satisfied', 'content'
-    ];
-
-    const negativeWords = [
-      'sad', 'angry', 'hate', 'terrible', 'awful', 'bad', 'horrible', 'disgusting',
-      'depressed', 'anxious', 'worried', 'stressed', 'frustrated', 'disappointed',
-      'lonely', 'scared', 'afraid', 'nervous', 'upset', 'annoyed', 'irritated'
-    ];
-
-    const words = text.toLowerCase().split(/\s+/);
-    let positiveCount = 0;
-    let negativeCount = 0;
-
-    words.forEach(word => {
-      if (positiveWords.includes(word)) positiveCount++;
-      if (negativeWords.includes(word)) negativeCount++;
-    });
-
-    const totalSentimentWords = positiveCount + negativeCount;
-    if (totalSentimentWords === 0) return 0;
-
-    return (positiveCount - negativeCount) / totalSentimentWords;
-  }
-
-  /**
-   * Store diary entry in vector database
-   */
-  static async storeVector(
-    userId: string,
-    entryId: string,
-    content: string,
-    mood: string,
-    date: Date
-  ): Promise<string> {
-    const db = getDatabase();
-    const vectorId = uuidv4();
-
-    // Generate embedding
-    const embedding = await this.generateEmbedding(content);
-
-    // Extract metadata
-    const topics = this.extractTopics(content);
-    const sentiment = this.calculateSentiment(content);
-    const wordCount = content.split(/\s+/).length;
-
-    const metadata = {
-      date: date.toISOString(),
-      mood,
-      topics,
-      sentiment,
-      wordCount
-    };
-
-    // Store in vectors table
-    await db.run(
-      `INSERT INTO diary_vectors (
-        id, user_id, entry_id, content, embedding, metadata, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
-        vectorId,
-        userId,
-        entryId,
-        content,
-        JSON.stringify(embedding),
-        JSON.stringify(metadata),
-        new Date().toISOString()
-      ]
-    );
-
-    return vectorId;
-  }
-
-  /**
-   * Update vector when diary entry is modified
-   */
-  static async updateVector(
-    vectorId: string,
-    content: string,
-    mood: string,
-    date: Date
-  ): Promise<void> {
-    const db = getDatabase();
-
-    // Generate new embedding
-    const embedding = await this.generateEmbedding(content);
-
-    // Extract new metadata
-    const topics = this.extractTopics(content);
-    const sentiment = this.calculateSentiment(content);
-    const wordCount = content.split(/\s+/).length;
-
-    const metadata = {
-      date: date.toISOString(),
-      mood,
-      topics,
-      sentiment,
-      wordCount
-    };
-
-    await db.run(
-      `UPDATE diary_vectors 
-       SET content = ?, embedding = ?, metadata = ?, updated_at = ?
-       WHERE id = ?`,
-      [
-        content,
-        JSON.stringify(embedding),
-        JSON.stringify(metadata),
-        new Date().toISOString(),
-        vectorId
-      ]
-    );
-  }
-
-  /**
-   * Delete vector when diary entry is deleted
-   */
-  static async deleteVector(vectorId: string): Promise<void> {
-    const db = getDatabase();
-    await db.run('DELETE FROM diary_vectors WHERE id = ?', [vectorId]);
-  }
-
-  /**
-   * Search similar diary entries using cosine similarity
-   */
-  static async searchSimilar(
-    userId: string,
-    queryText: string,
-    limit: number = 5
-  ): Promise<DiaryVector[]> {
-    const db = getDatabase();
-
-    // Generate embedding for query
-    const queryEmbedding = await this.generateEmbedding(queryText);
-
-    // Get all vectors for user
-    const rows = await db.all(
-      `SELECT id, user_id, entry_id, content, embedding, metadata, created_at
-       FROM diary_vectors 
-       WHERE user_id = ?`,
-      [userId]
-    );
-
-    // Calculate cosine similarity for each vector
-    const similarities = rows.map(row => {
-      const embedding = JSON.parse(row.embedding);
-      const similarity = this.cosineSimilarity(queryEmbedding, embedding);
-
-      return {
-        ...row,
-        similarity,
-        embedding,
-        metadata: JSON.parse(row.metadata),
-        createdAt: new Date(row.created_at)
-      };
-    });
-
-    // Sort by similarity and return top results
-    return similarities
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, limit)
-      .map(({ similarity, ...vector }) => vector);
-  }
-
-  /**
-   * Calculate cosine similarity between two vectors
-   */
-  private static cosineSimilarity(a: number[], b: number[]): number {
-    if (a.length !== b.length) return 0;
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
-
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+  private calculateTimeRange(entries: VectorEntry[]): { start: Date; end: Date } {
+    if (entries.length === 0) {
+      const now = new Date();
+      return { start: now, end: now };
     }
 
-    const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-    return magnitude > 0 ? dotProduct / magnitude : 0;
-  }
-
-  /**
-   * Get user's vector statistics
-   */
-  static async getUserVectorStats(userId: string): Promise<{
-    totalVectors: number;
-    averageSentiment: number;
-    topTopics: string[];
-    moodDistribution: Record<string, number>;
-  }> {
-    const db = getDatabase();
-
-    const rows = await db.all(
-      'SELECT metadata FROM diary_vectors WHERE user_id = ?',
-      [userId]
-    );
-
-    if (rows.length === 0) {
-      return {
-        totalVectors: 0,
-        averageSentiment: 0,
-        topTopics: [],
-        moodDistribution: {}
-      };
-    }
-
-    const allMetadata = rows.map(row => JSON.parse(row.metadata));
-
-    // Calculate average sentiment
-    const averageSentiment = allMetadata.reduce((sum, meta) => sum + meta.sentiment, 0) / allMetadata.length;
-
-    // Count all topics
-    const topicCount: Record<string, number> = {};
-    allMetadata.forEach(meta => {
-      meta.topics.forEach((topic: string) => {
-        topicCount[topic] = (topicCount[topic] || 0) + 1;
-      });
-    });
-
-    // Get top 10 topics
-    const topTopics = Object.entries(topicCount)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 10)
-      .map(([topic]) => topic);
-
-    // Count mood distribution
-    const moodDistribution: Record<string, number> = {};
-    allMetadata.forEach(meta => {
-      moodDistribution[meta.mood] = (moodDistribution[meta.mood] || 0) + 1;
-    });
+    const dates = entries
+      .map(entry => new Date(entry.metadata?.createdAt || new Date()))
+      .sort((a, b) => a.getTime() - b.getTime());
 
     return {
-      totalVectors: rows.length,
-      averageSentiment,
-      topTopics,
-      moodDistribution
+      start: dates[0],
+      end: dates[dates.length - 1]
     };
   }
 }
+
+// Singleton instance
+export const vectorService = new VectorService();
+export default vectorService;

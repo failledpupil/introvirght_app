@@ -32,4 +32,10 @@ router.delete('/history', ChatController.clearChatHistory);
  */
 router.get('/stats', ChatController.getConversationStats);
 
+/**
+ * GET /api/chat/insights
+ * Get personalized insights based on diary patterns
+ */
+router.get('/insights', ChatController.getPersonalInsights);
+
 export default router;
