@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Signup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background: linear-gradient(to right, #10b981, #059669);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background: linear-gradient(to right, #059669, #047857);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Signup Functionality</h1>
+    
+    <form id="signupForm">
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="confirmPassword">Confirm Password:</label>
+            <input type="password" id="confirmPassword" name="confirmPassword" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="bio">Bio (optional):</label>
+            <textarea id="bio" name="bio" rows="3"></textarea>
+        </div>
+        
+        <button type="submit" id="submitBtn">Create Account</button>
+    </form>
+    
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('signupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const resultDiv = document.getElementById('result');
+            
+            // Get form data
+            const formData = {
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                confirmPassword: document.getElementById('confirmPassword').value,
+                bio: document.getElementById('bio').value
+            };
+            
+            // Basic validation
+            if (formData.password !== formData.confirmPassword) {
+                resultDiv.innerHTML = '<div class="error">Passwords do not match!</div>';
+                return;
+            }
+            
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Creating Account...';
+            resultDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/auth/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>Account Created Successfully!</h3>
+                            <p><strong>Username:</strong> ${data.data.user.username}</p>
+                            <p><strong>Email:</strong> ${data.data.user.email}</p>
+                            <p><strong>User ID:</strong> ${data.data.user.id}</p>
+                            <p><strong>Token:</strong> ${data.data.token.substring(0, 20)}...</p>
+                        </div>
+                    `;
+                    
+                    // Clear form
+                    document.getElementById('signupForm').reset();
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>Registration Failed</h3>
+                            <p>${data.error?.message || 'Unknown error occurred'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>Network Error</h3>
+                        <p>Unable to connect to server: ${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Create Account';
+            }
+        });
+        
+        // Auto-fill test data
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = Date.now();
+            document.getElementById('username').value = `testuser${now}`;
+            document.getElementById('email').value = `testuser${now}@example.com`;
+            document.getElementById('password').value = 'password123';
+            document.getElementById('confirmPassword').value = 'password123';
+            document.getElementById('bio').value = 'Test user created from signup test page';
+        });
+    </script>
+</body>
+</html>

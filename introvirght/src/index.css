@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
+@import './styles/colorful-theme.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Custom CSS variables for consistent theming */
+    --sage-50: #f8faf8;
+    --sage-100: #e8f2e8;
+    --sage-200: #d1e5d1;
+    --sage-300: #a8d0a8;
+    --sage-500: #6b9b6b;
+    --sage-700: #4a6b4a;
+    
+    --stone-50: #fafaf9;
+    --stone-100: #f5f5f4;
+    --stone-200: #e7e5e4;
+    --stone-400: #a8a29e;
+    --stone-600: #57534e;
+    --stone-800: #292524;
+    
+    --lavender-100: #f3f0ff;
+    --lavender-300: #c4b5fd;
+    --lavender-500: #8b5cf6;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background: linear-gradient(135deg, #f0f9ff 0%, #f3e8ff 25%, #fdf2f8 50%, #f0fdf4 75%, #f0f9ff 100%);
+    background-size: 400% 400%;
+    animation: gradientShift 20s ease infinite;
+    @apply text-gray-800 min-h-screen;
+    margin: 0;
+  }
+
+  /* Smooth transitions for all interactive elements */
+  * {
+    transition: all 0.2s ease-out;
+  }
+
+  /* Gradient animation keyframes */
+  @keyframes gradientShift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* Spinner animation */
+  @keyframes spin {
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+@layer components {
+  /* Calming button styles */
+  .btn-primary {
+    @apply bg-sage-500 hover:bg-sage-600 text-white px-6 py-3 rounded-lg font-medium transition-all duration-200 ease-out shadow-sm hover:shadow-md;
+  }
+
+  .btn-secondary {
+    @apply bg-stone-100 hover:bg-stone-200 text-stone-700 px-6 py-3 rounded-lg font-medium transition-all duration-200 ease-out border border-stone-200;
+  }
+
+  /* Gentle form inputs */
+  .input-gentle {
+    @apply w-full px-4 py-3 rounded-lg border border-stone-200 bg-white focus:border-sage-300 focus:ring-2 focus:ring-sage-100 focus:outline-none transition-all duration-200 ease-out;
+  }
+
+  /* Calming card styles */
+  .card-gentle {
+    @apply bg-white rounded-xl shadow-sm border border-stone-100 p-6 transition-all duration-200 ease-out hover:shadow-md;
+  }
+
+  /* Inspirational text styles */
+  .text-inspirational {
+    @apply font-serif text-stone-600 italic;
+  }
+
+  /* Modal overlay - ensure it's always on top */
+  .modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 2147483647 !important; /* Maximum z-index value */
+    isolation: isolate !important;
+    pointer-events: auto !important;
+  }
+
+  /* Ensure modal content is interactive */
+  .modal-overlay * {
+    pointer-events: auto !important;
+  }
+}
