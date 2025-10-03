@@ -1,30 +1,17 @@
 {
-  "name": "introvirght-monorepo",
+  "name": "introvirght-vercel",
   "version": "1.0.0",
-  "description": "A mindful social platform for authentic self-expression",
+  "description": "Introvirght Vercel deployment",
+  "main": "server/api/index.js",
   "scripts": {
-    "setup": "node deploy-setup.js",
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "cd server && npm run dev",
-    "dev:client": "cd introvirght && npm run dev",
-    "build": "npm run build:server",
-    "build:server": "cd server && npm run build",
-    "build:client": "cd introvirght && npm run build",
-    "start": "cd server && npm start",
-    "deploy:setup": "node deploy-setup.js"
+    "build": "cd introvirght && npm install && npm run build",
+    "dev": "cd introvirght && npm run dev"
   },
-  "keywords": [
-    "social-platform",
-    "mindfulness",
-    "diary",
-    "self-expression",
-    "react",
-    "nodejs",
-    "typescript"
-  ],
-  "author": "Your Name",
-  "license": "MIT",
+  "dependencies": {
+    "@vercel/node": "^3.0.0",
+    "@types/node": "^20.0.0"
+  },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "typescript": "^5.0.0"
   }
 }
