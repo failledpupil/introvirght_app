@@ -15,8 +15,7 @@
     "allowSyntheticDefaultImports": true,
     "noEmitOnError": false,
     "strict": false,
-    "noImplicitAny": false,
-    "types": ["node"]
+    "noImplicitAny": false
   },
   "include": [
     "src/**/*"
