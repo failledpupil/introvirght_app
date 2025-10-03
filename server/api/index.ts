@@ -13,6 +13,19 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  // Root path - welcome message
+  if (req.url === '/') {
+    return res.status(200).json({
+      success: true,
+      message: 'Introvirght API is running',
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        health: '/health',
+        api: '/api/*'
+      }
+    });
+  }
+
   // Health check endpoint
   if (req.url === '/health' || req.url === '/api/health') {
     return res.status(200).json({
