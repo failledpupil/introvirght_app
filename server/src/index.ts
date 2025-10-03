@@ -99,19 +99,33 @@ app.use((error: any, _req: express.Request, res: express.Response, _next: expres
 // Initialize database and start server
 const startServer = async () => {
     try {
+        console.log('🔄 Starting server initialization...');
+        console.log(`📍 PORT: ${PORT}`);
+        console.log(`🌍 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+        
         // Initialize database
+        console.log('🔄 Initializing database...');
         await initializeDatabase();
         console.log('✅ Database initialized successfully');
 
         // Start server
-        app.listen(PORT, () => {
+        console.log('🔄 Starting HTTP server...');
+        const server = app.listen(PORT, '0.0.0.0', () => {
             console.log(`🚀 Server running on port ${PORT}`);
             console.log(`📱 Frontend URL: ${FRONTEND_URL}`);
             console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-            console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+            console.log(`🔗 Health check: http://0.0.0.0:${PORT}/health`);
+            console.log('✅ Server startup complete');
         });
+
+        server.on('error', (error: any) => {
+            console.error('❌ Server error:', error);
+            process.exit(1);
+        });
+
     } catch (error) {
         console.error('❌ Failed to start server:', error);
+        console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
         process.exit(1);
     }
 };
