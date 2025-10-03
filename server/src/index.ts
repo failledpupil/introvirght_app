@@ -115,7 +115,7 @@ const startServer = async () => {
             console.log(`📱 Frontend URL: ${FRONTEND_URL}`);
             console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
             console.log(`🔗 Health check: http://0.0.0.0:${PORT}/health`);
-            console.log('✅ Server startup complete');
+            console.log('✅ Server startup complete - Fresh deployment!');
         });
 
         server.on('error', (error: any) => {
