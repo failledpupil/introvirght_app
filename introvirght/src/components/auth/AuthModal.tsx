@@ -56,58 +56,28 @@ const AuthModal: React.FC<AuthModalProps> = ({
   // Create modal content
   const modalContent = (
     <div 
-      className="modal-overlay fixed inset-0 overflow-y-auto"
-      style={{ 
-        zIndex: 2147483647,
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        isolation: 'isolate',
-        pointerEvents: 'auto',
-        backgroundColor: 'rgba(0, 0, 0, 0.1)' // Slight tint to make it visible
-      }}
+      className="modal-overlay"
       onClick={(e) => {
-        console.log('Modal backdrop clicked');
         if (e.target === e.currentTarget) {
           onClose();
         }
       }}
     >
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0"
-        style={{
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 1
-        }}
-        onClick={() => {
-          console.log('Inner backdrop clicked');
-          onClose();
-        }}
-      />
-
       {/* Modal Container */}
       <div 
-        className="flex min-h-full items-center justify-center p-4"
+        className="flex min-h-full items-center justify-center"
         style={{
           display: 'flex',
           minHeight: '100vh',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '1rem',
+          padding: 'var(--space-4)',
           position: 'relative',
           zIndex: 2
         }}
       >
         <div 
-          className="relative w-full max-w-md"
+          className="relative w-full"
           style={{
             position: 'relative',
             width: '100%',
@@ -117,23 +87,23 @@ const AuthModal: React.FC<AuthModalProps> = ({
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute z-10"
+            className="absolute focus-ring"
             style={{
               position: 'absolute',
               top: '-12px',
               right: '-12px',
               zIndex: 10,
-              backgroundColor: 'white',
+              backgroundColor: 'var(--bg-primary)',
               borderRadius: '50%',
-              padding: '8px',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-              border: '1px solid #e5e7eb',
+              padding: 'var(--space-2)',
+              boxShadow: 'var(--shadow-lg)',
+              border: '1px solid var(--neutral-200)',
               cursor: 'pointer'
             }}
             aria-label="Close modal"
           >
             <svg 
-              style={{ width: '20px', height: '20px', color: '#6b7280' }} 
+              style={{ width: '20px', height: '20px', color: 'var(--neutral-500)' }} 
               fill="none" 
               stroke="currentColor" 
               viewBox="0 0 24 24"

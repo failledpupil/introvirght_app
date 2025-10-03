@@ -29,44 +29,56 @@ export class ChatbotService {
   static async generateResponse(userId: string, userMessage: string): Promise<ChatResponse> {
     console.log(`🤖 Generating AI response for user ${userId}: "${userMessage.substring(0, 50)}..."`);
     
-    // Get diary context using DataStax vector search
-    const diaryContext = await vectorService.getDiaryContext(userMessage, userId, 3);
+    try {
+      // Get diary context using DataStax vector search
+      console.log('🔍 Getting diary context...');
+      const diaryContext = await vectorService.getDiaryContext(userMessage, userId, 3);
+      console.log('✅ Diary context retrieved');
     
-    // Get the actual diary entries for context
-    const relatedEntries = [];
-    for (const vectorEntry of diaryContext.relevantEntries) {
-      const entry = await DiaryEntryModel.findById(vectorEntry.entryId, userId);
-      if (entry) {
-        relatedEntries.push({
-          id: entry.id,
-          date: entry.createdAt.toDateString(),
-          mood: entry.mood,
-          content: entry.content.substring(0, 200) + (entry.content.length > 200 ? '...' : ''),
-          similarity: (vectorEntry as any).similarity || 0,
-          themes: vectorEntry.metadata?.tags || []
-        });
+      // Get the actual diary entries for context
+      console.log('🔍 Processing diary entries...');
+      const relatedEntries = [];
+      for (const vectorEntry of diaryContext.relevantEntries) {
+        const entry = await DiaryEntryModel.findById(vectorEntry.entryId, userId);
+        if (entry) {
+          relatedEntries.push({
+            id: entry.id,
+            date: entry.createdAt.toDateString(),
+            mood: entry.mood,
+            content: entry.content.substring(0, 200) + (entry.content.length > 200 ? '...' : ''),
+            similarity: (vectorEntry as any).similarity || 0,
+            themes: vectorEntry.metadata?.tags || []
+          });
+        }
       }
-    }
 
-    console.log(`📚 Found ${relatedEntries.length} related diary entries for context`);
+      console.log(`📚 Found ${relatedEntries.length} related diary entries for context`);
 
-    // Generate contextual response
-    const aiResponse = await this.generateContextualResponse(userMessage, relatedEntries, diaryContext, userId);
+      // Generate contextual response
+      console.log('🤖 Generating contextual response...');
+      const aiResponse = await this.generateContextualResponse(userMessage, relatedEntries, diaryContext, userId);
+      console.log('✅ Contextual response generated');
     
-    // Save both messages to chat history
-    await this.saveChatMessage(userId, 'user', userMessage);
-    const assistantChatMessage = await this.saveChatMessage(userId, 'assistant', aiResponse, {
-      relatedEntries: relatedEntries.map(e => e.id),
-      themes: diaryContext.themes,
-      similarityScores: diaryContext.similarityScores
-    });
+      // Save both messages to chat history
+      console.log('💾 Saving chat messages...');
+      await this.saveChatMessage(userId, 'user', userMessage);
+      const assistantChatMessage = await this.saveChatMessage(userId, 'assistant', aiResponse, {
+        relatedEntries: relatedEntries.map(e => e.id),
+        themes: diaryContext.themes,
+        similarityScores: diaryContext.similarityScores
+      });
+      console.log('✅ Chat messages saved');
 
-    console.log(`✅ Generated AI response with ${relatedEntries.length} diary context entries`);
+      console.log(`✅ Generated AI response with ${relatedEntries.length} diary context entries`);
 
-    return {
-      message: assistantChatMessage,
-      relatedEntries
-    };
+      return {
+        message: assistantChatMessage,
+        relatedEntries
+      };
+    } catch (error) {
+      console.error('❌ Error in generateResponse:', error);
+      throw error;
+    }
   }
 
   /**
@@ -107,10 +119,12 @@ export class ChatbotService {
       messages.push({ role: 'user', content: userMessage });
       
       // Generate response using OpenAI
+      console.log('🔍 Calling OpenAI API...');
       const response = await OpenAIService.generateChatCompletion(messages, {
         temperature: 0.7,
         maxTokens: 300
       });
+      console.log('✅ OpenAI API response received');
       
       return response.content;
       

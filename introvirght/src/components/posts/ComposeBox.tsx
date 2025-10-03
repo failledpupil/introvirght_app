@@ -125,16 +125,41 @@ const ComposeBox: React.FC<ComposeBoxProps> = ({
 
   if (!isAuthenticated) {
     return (
-      <div className={`card-gentle ${className}`}>
-        <div className="text-center py-8 space-y-4">
-          <div className="w-16 h-16 bg-sage-100 rounded-full flex items-center justify-center mx-auto">
-            <svg className="w-8 h-8 text-sage-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className={`card ${className}`}>
+        <div className="text-center" style={{ 
+          paddingTop: 'var(--space-8)', 
+          paddingBottom: 'var(--space-8)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--space-4)'
+        }}>
+          <div style={{ 
+            width: '64px', 
+            height: '64px', 
+            backgroundColor: 'var(--neutral-100)', 
+            borderRadius: '50%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            margin: '0 auto' 
+          }}>
+            <svg style={{ width: '32px', height: '32px', color: 'var(--secondary)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </div>
           <div>
-            <h3 className="text-lg font-medium text-stone-800 mb-2">Share Your Thoughts</h3>
-            <p className="text-stone-600 text-sm mb-4">
+            <h3 style={{ 
+              fontSize: 'var(--text-lg)', 
+              fontWeight: '500', 
+              color: 'var(--primary)', 
+              marginBottom: 'var(--space-2)' 
+            }}>
+              Share Your Thoughts
+            </h3>
+            <p style={{ 
+              color: 'var(--neutral-600)', 
+              fontSize: 'var(--text-sm)' 
+            }}>
               Sign in to share your mindful reflections with the community
             </p>
           </div>
@@ -144,43 +169,73 @@ const ComposeBox: React.FC<ComposeBoxProps> = ({
   }
 
   return (
-    <div className={`card-gentle ${className}`}>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className={`card ${className}`}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
         {/* Header */}
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-sage-100 rounded-full flex items-center justify-center">
-            <span className="text-sage-700 font-medium">
+        <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
+          <div style={{ 
+            width: '40px', 
+            height: '40px', 
+            backgroundColor: 'var(--neutral-100)', 
+            borderRadius: '50%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center' 
+          }}>
+            <span style={{ 
+              color: 'var(--secondary)', 
+              fontWeight: '500' 
+            }}>
               {user?.username.charAt(0).toUpperCase()}
             </span>
           </div>
           <div>
-            <p className="font-medium text-stone-800">{user?.username}</p>
-            <p className="text-stone-500 text-sm text-inspirational">
+            <p style={{ fontWeight: '500', color: 'var(--primary)' }}>{user?.username}</p>
+            <p style={{ 
+              color: 'var(--neutral-500)', 
+              fontSize: 'var(--text-sm)', 
+              fontStyle: 'italic' 
+            }}>
               {inspirationPrompt}
             </p>
           </div>
         </div>
 
         {/* Content Input */}
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           <textarea
             ref={textareaRef}
             value={content}
             onChange={(e) => handleContentChange(e.target.value)}
             onBlur={handleBlur}
-            className={`w-full px-0 py-2 border-0 bg-transparent resize-none focus:outline-none text-stone-800 placeholder-stone-400 text-lg leading-relaxed ${
-              hasFieldError(errors, 'content') ? 'text-red-600' : ''
-            }`}
+            style={{
+              width: '100%',
+              padding: 'var(--space-2) 0',
+              border: '0',
+              backgroundColor: 'transparent',
+              resize: 'none',
+              outline: 'none',
+              color: hasFieldError(errors, 'content') ? '#ef4444' : 'var(--primary)',
+              fontSize: 'var(--text-lg)',
+              lineHeight: '1.6',
+              minHeight: '80px',
+              maxHeight: '300px'
+            }}
             placeholder={placeholder || "What's bringing you peace today?"}
             rows={3}
             disabled={isSubmitting}
-            style={{ minHeight: '80px', maxHeight: '300px' }}
           />
           
           {/* Error Message */}
           {hasFieldError(errors, 'content') && (
-            <p className="text-red-600 text-sm flex items-center space-x-1">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <p style={{ 
+              color: '#ef4444', 
+              fontSize: 'var(--text-sm)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 'var(--space-1)' 
+            }}>
+              <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span>{getFieldError(errors, 'content')}</span>
@@ -189,19 +244,25 @@ const ComposeBox: React.FC<ComposeBoxProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-stone-100">
+        <div className="flex items-center justify-between" style={{ 
+          paddingTop: 'var(--space-3)', 
+          borderTop: '1px solid var(--neutral-200)' 
+        }}>
           {/* Character Count */}
-          <div className="flex items-center space-x-4">
-            <span className={`text-sm ${countColor}`}>
+          <div className="flex items-center" style={{ gap: 'var(--space-4)' }}>
+            <span style={{ fontSize: 'var(--text-sm)', color: countColor }}>
               {characterCount}/{characterLimit}
             </span>
             {characterCount > characterLimit * 0.8 && (
-              <div className="flex items-center space-x-1">
-                <div className={`w-2 h-2 rounded-full ${
-                  isOverLimit ? 'bg-red-400' : 
-                  characterCount > characterLimit * 0.9 ? 'bg-lavender-400' : 'bg-sage-400'
-                }`}></div>
-                <span className="text-xs text-stone-500">
+              <div className="flex items-center" style={{ gap: 'var(--space-1)' }}>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: isOverLimit ? '#ef4444' : 
+                    characterCount > characterLimit * 0.9 ? '#f59e0b' : 'var(--secondary)'
+                }}></div>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--neutral-500)' }}>
                   {isOverLimit ? 'Over limit' : 'Approaching limit'}
                 </span>
               </div>
@@ -212,16 +273,23 @@ const ComposeBox: React.FC<ComposeBoxProps> = ({
           <button
             type="submit"
             disabled={!canSubmit || isSubmitting}
-            className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 px-6 py-2"
+            className="btn-primary"
+            style={{
+              opacity: !canSubmit || isSubmitting ? 0.5 : 1,
+              cursor: !canSubmit || isSubmitting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)'
+            }}
           >
             {isSubmitting ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <div className="loading-spinner" style={{ width: '16px', height: '16px' }}></div>
                 <span>Sharing...</span>
               </>
             ) : (
               <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                 </svg>
                 <span>Share</span>
@@ -233,8 +301,16 @@ const ComposeBox: React.FC<ComposeBoxProps> = ({
 
       {/* Gentle Encouragement */}
       {content.length === 0 && !touched && (
-        <div className="mt-4 pt-4 border-t border-stone-100">
-          <p className="text-stone-500 text-sm text-center text-inspirational">
+        <div style={{ 
+          marginTop: 'var(--space-4)', 
+          paddingTop: 'var(--space-4)', 
+          borderTop: '1px solid var(--neutral-200)' 
+        }}>
+          <p className="text-center" style={{ 
+            color: 'var(--neutral-500)', 
+            fontSize: 'var(--text-sm)', 
+            fontStyle: 'italic' 
+          }}>
             "Every authentic thought shared is a step towards deeper connection."
           </p>
         </div>

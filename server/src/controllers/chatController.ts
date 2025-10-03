@@ -9,7 +9,12 @@ export class ChatController {
    */
   static async sendMessage(req: Request, res: Response): Promise<void> {
     try {
+      console.log('🔍 Chat message request received');
+      console.log('🔍 User:', req.user ? `ID: ${req.user.id}` : 'Not authenticated');
+      console.log('🔍 Request body:', req.body);
+      
       if (!req.user) {
+        console.log('❌ User not authenticated');
         res.status(401).json({
           success: false,
           error: {
@@ -45,14 +50,17 @@ export class ChatController {
       }
 
       // Generate AI response
+      console.log('🤖 Generating AI response...');
       const response = await ChatbotService.generateResponse(req.user.id, message.trim());
+      console.log('✅ AI response generated successfully');
 
       res.json({
         success: true,
         data: response,
       });
     } catch (error) {
-      console.error('Chat message error:', error);
+      console.error('❌ Chat message error:', error);
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       res.status(500).json({
         success: false,
         error: {

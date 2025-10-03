@@ -150,14 +150,23 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchToLogin 
   const bioCount = getCharacterCount(formData.bio || '', 160);
 
   return (
-    <div className="card-gentle max-w-md mx-auto">
-      <div className="space-y-6">
+    <div className="card-elevated" style={{ maxWidth: '28rem', margin: '0 auto' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
         {/* Header */}
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl font-serif font-semibold text-sage-700">
+        <div className="text-center" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <h2 style={{
+            fontSize: 'var(--text-2xl)',
+            fontWeight: '600',
+            color: 'var(--primary)',
+            margin: 0
+          }}>
             Join Introvirght
           </h2>
-          <p className="text-stone-600">
+          <p style={{
+            color: 'var(--neutral-600)',
+            fontSize: 'var(--text-sm)',
+            margin: 0
+          }}>
             Begin your journey of mindful self-expression
           </p>
         </div>
@@ -175,10 +184,15 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchToLogin 
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {/* Username Field */}
-          <div className="space-y-2">
-            <label htmlFor="username" className="block text-sm font-medium text-stone-700">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+            <label htmlFor="username" style={{
+              display: 'block',
+              fontSize: 'var(--text-sm)',
+              fontWeight: '500',
+              color: 'var(--neutral-700)'
+            }}>
               Username
             </label>
             <div className="relative">
@@ -188,11 +202,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchToLogin 
                 value={formData.username}
                 onChange={(e) => handleInputChange('username', e.target.value)}
                 onBlur={() => handleBlur('username')}
-                className={`input-gentle ${
+                className={`input-field ${
                   hasFieldError(fieldErrors, 'username') || usernameAvailability.available === false
-                    ? 'border-red-300 focus:border-red-300 focus:ring-red-100' 
+                    ? 'border-red-300' 
                     : usernameAvailability.available === true
-                    ? 'border-green-300 focus:border-green-300 focus:ring-green-100'
+                    ? 'border-green-300'
                     : ''
                 }`}
                 placeholder="Choose a unique username"
@@ -356,11 +370,19 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchToLogin 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+            className="btn-primary w-full"
+            style={{
+              opacity: isLoading ? 0.5 : 1,
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 'var(--space-2)'
+            }}
           >
             {isLoading ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <div className="loading-spinner" style={{ width: '16px', height: '16px' }}></div>
                 <span>Creating account...</span>
               </>
             ) : (
@@ -371,13 +393,21 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchToLogin 
 
         {/* Switch to Login */}
         {onSwitchToLogin && (
-          <div className="text-center pt-4 border-t border-stone-200">
-            <p className="text-stone-600 text-sm">
+          <div className="text-center" style={{ 
+            paddingTop: 'var(--space-4)', 
+            borderTop: '1px solid var(--neutral-200)' 
+          }}>
+            <p style={{ color: 'var(--neutral-600)', fontSize: 'var(--text-sm)' }}>
               Already have an account?{' '}
               <button
                 type="button"
                 onClick={onSwitchToLogin}
-                className="text-sage-600 hover:text-sage-700 font-medium transition-colors duration-200"
+                className="btn-ghost"
+                style={{ 
+                  padding: '0', 
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: '500'
+                }}
               >
                 Sign in
               </button>
@@ -386,8 +416,12 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onSwitchToLogin 
         )}
 
         {/* Inspirational Quote */}
-        <div className="text-center pt-4">
-          <p className="text-inspirational text-sm">
+        <div className="text-center" style={{ paddingTop: 'var(--space-4)' }}>
+          <p style={{ 
+            color: 'var(--neutral-500)', 
+            fontSize: 'var(--text-sm)', 
+            fontStyle: 'italic' 
+          }}>
             "Every journey begins with a single step towards authenticity."
           </p>
         </div>

@@ -88,13 +88,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
           placeholder={placeholder}
-          className="w-full pl-10 pr-4 py-2 bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sage-100 focus:border-sage-300 transition-all duration-200"
+          className="input-field"
+          style={{ paddingLeft: '40px' }}
         />
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none" style={{ paddingLeft: 'var(--space-3)' }}>
           {isSearching ? (
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-sage-500"></div>
+            <div className="loading-spinner" style={{ width: '16px', height: '16px' }}></div>
           ) : (
-            <svg className="h-4 w-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg style={{ width: '16px', height: '16px', color: 'var(--neutral-400)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           )}
@@ -103,45 +104,102 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
       {/* Search Results */}
       {showResults && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-stone-200 max-h-96 overflow-y-auto z-50">
+        <div className="absolute top-full left-0 right-0 z-50" style={{
+          marginTop: 'var(--space-2)',
+          backgroundColor: 'var(--bg-primary)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-lg)',
+          border: '1px solid var(--neutral-200)',
+          maxHeight: '384px',
+          overflowY: 'auto'
+        }}>
           {query.length < 2 ? (
-            <div className="p-4 text-center text-stone-500 text-sm">
+            <div className="text-center" style={{ 
+              padding: 'var(--space-4)', 
+              color: 'var(--neutral-500)', 
+              fontSize: 'var(--text-sm)' 
+            }}>
               Type at least 2 characters to search
             </div>
           ) : totalResults === 0 && !isSearching ? (
-            <div className="p-4 text-center text-stone-500 text-sm">
+            <div className="text-center" style={{ 
+              padding: 'var(--space-4)', 
+              color: 'var(--neutral-500)', 
+              fontSize: 'var(--text-sm)' 
+            }}>
               No results found for "{query}"
             </div>
           ) : (
-            <div className="py-2">
+            <div style={{ padding: 'var(--space-2) 0' }}>
               {/* Posts Section */}
               {results.posts.length > 0 && (
                 <div>
-                  <div className="px-4 py-2 text-xs font-medium text-stone-500 uppercase tracking-wide border-b border-stone-100">
+                  <div style={{ 
+                    padding: 'var(--space-2) var(--space-4)',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: '500',
+                    color: 'var(--neutral-500)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    borderBottom: '1px solid var(--neutral-100)'
+                  }}>
                     Posts
                   </div>
                   {results.posts.map((post) => (
                     <button
                       key={post.id}
                       onClick={() => handleResultClick(post, 'post')}
-                      className="w-full px-4 py-3 text-left hover:bg-stone-50 transition-colors duration-200 border-b border-stone-50 last:border-b-0"
+                      className="w-full hover:bg-gray-50 transition-colors"
+                      style={{
+                        padding: 'var(--space-3) var(--space-4)',
+                        textAlign: 'left',
+                        borderBottom: '1px solid var(--neutral-100)'
+                      }}
                     >
-                      <div className="flex items-start space-x-3">
-                        <div className="w-8 h-8 bg-sage-100 rounded-full flex items-center justify-center flex-shrink-0">
-                          <span className="text-sage-700 text-sm font-medium">
+                      <div className="flex items-start" style={{ gap: 'var(--space-3)' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          backgroundColor: 'var(--neutral-100)',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          <span style={{
+                            color: 'var(--secondary)',
+                            fontSize: 'var(--text-sm)',
+                            fontWeight: '500'
+                          }}>
                             {post.author?.username.charAt(0).toUpperCase()}
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-1">
-                            <span className="font-medium text-stone-800 text-sm">
+                          <div className="flex items-center" style={{ gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+                            <span style={{
+                              fontWeight: '500',
+                              color: 'var(--primary)',
+                              fontSize: 'var(--text-sm)'
+                            }}>
                               {post.author?.username}
                             </span>
-                            <span className="text-stone-400 text-xs">
+                            <span style={{
+                              color: 'var(--neutral-400)',
+                              fontSize: 'var(--text-xs)'
+                            }}>
                               {new Date(post.createdAt).toLocaleDateString()}
                             </span>
                           </div>
-                          <p className="text-stone-600 text-sm line-clamp-2">
+                          <p style={{
+                            color: 'var(--neutral-600)',
+                            fontSize: 'var(--text-sm)',
+                            lineHeight: '1.4',
+                            overflow: 'hidden',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical'
+                          }}>
                             {post.content}
                           </p>
                         </div>
@@ -154,28 +212,63 @@ const SearchBar: React.FC<SearchBarProps> = ({
               {/* Users Section */}
               {results.users.length > 0 && (
                 <div>
-                  {results.posts.length > 0 && <div className="border-t border-stone-200"></div>}
-                  <div className="px-4 py-2 text-xs font-medium text-stone-500 uppercase tracking-wide border-b border-stone-100">
+                  {results.posts.length > 0 && <div style={{ borderTop: '1px solid var(--neutral-200)' }}></div>}
+                  <div style={{ 
+                    padding: 'var(--space-2) var(--space-4)',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: '500',
+                    color: 'var(--neutral-500)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    borderBottom: '1px solid var(--neutral-100)'
+                  }}>
                     Users
                   </div>
                   {results.users.map((user) => (
                     <button
                       key={user.id}
                       onClick={() => handleResultClick(user, 'user')}
-                      className="w-full px-4 py-3 text-left hover:bg-stone-50 transition-colors duration-200 border-b border-stone-50 last:border-b-0"
+                      className="w-full hover:bg-gray-50 transition-colors"
+                      style={{
+                        padding: 'var(--space-3) var(--space-4)',
+                        textAlign: 'left',
+                        borderBottom: '1px solid var(--neutral-100)'
+                      }}
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 bg-sage-100 rounded-full flex items-center justify-center">
-                          <span className="text-sage-700 text-sm font-medium">
+                      <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          backgroundColor: 'var(--neutral-100)',
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <span style={{
+                            color: 'var(--secondary)',
+                            fontSize: 'var(--text-sm)',
+                            fontWeight: '500'
+                          }}>
                             {user.username.charAt(0).toUpperCase()}
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-stone-800 text-sm">
+                          <div style={{
+                            fontWeight: '500',
+                            color: 'var(--primary)',
+                            fontSize: 'var(--text-sm)'
+                          }}>
                             {user.username}
                           </div>
                           {user.bio && (
-                            <p className="text-stone-500 text-xs truncate">
+                            <p style={{
+                              color: 'var(--neutral-500)',
+                              fontSize: 'var(--text-xs)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}>
                               {user.bio}
                             </p>
                           )}

@@ -14,7 +14,7 @@ import chatRoutes from './routes/chat';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // Production frontend URLs
@@ -107,6 +107,22 @@ const startServer = async () => {
         console.log('🔄 Initializing database...');
         await initializeDatabase();
         console.log('✅ Database initialized successfully');
+
+        // Initialize DataStax (optional - will warn if not configured)
+        console.log('🔄 Initializing DataStax vector store...');
+        try {
+            const { dataStaxService } = await import('./config/datastax');
+            if (dataStaxService.isConfigured()) {
+                await dataStaxService.initialize();
+                console.log('✅ DataStax vector store initialized successfully');
+            } else {
+                console.log('⚠️ DataStax not configured - vector features will be disabled');
+                console.log('   Set DATASTAX_ENDPOINT and DATASTAX_TOKEN to enable vector search');
+            }
+        } catch (error) {
+            console.log('⚠️ DataStax initialization failed - vector features will be disabled');
+            console.log('   Error:', error instanceof Error ? error.message : 'Unknown error');
+        }
 
         // Start server
         console.log('🔄 Starting HTTP server...');

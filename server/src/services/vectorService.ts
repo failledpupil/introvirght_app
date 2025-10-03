@@ -1,6 +1,5 @@
-import { dataStaxService, VectorEntry, SemanticSearchResult } from '../config/datastax';
-import { embeddingService } from './embeddingService';
-import { DiaryEntry } from '../models/DiaryEntry';
+import { dataStaxService, VectorEntry } from '../config/datastax';
+import embeddingService from './embeddingService';
 
 export interface DiaryContext {
   relevantEntries: VectorEntry[];
@@ -48,23 +47,22 @@ export class VectorService {
       const keyPhrases = embeddingService.extractKeyPhrases(content);
       
       // Store in DataStax
-      const success = await dataStaxService.storeEmbedding(
+      await dataStaxService.storeEmbedding(
         entryId,
         userId,
         content,
         embeddingResult.embedding,
         {
-          ...metadata,
+          mood: metadata.mood || 'neutral',
           tags: [...(metadata.tags || []), ...keyPhrases.slice(0, 5)], // Add key phrases as tags
-          wordCount: content.split(' ').length
+          createdAt: new Date().toISOString(),
+          wordCount: content.split(' ').length,
+          sentiment: metadata.sentiment
         }
       );
 
-      if (success) {
-        console.log(`✅ Stored vector for entry ${entryId} (${embeddingResult.tokens} tokens)`);
-      }
-
-      return success;
+      console.log(`✅ Stored vector for entry ${entryId} (${embeddingResult.tokens} tokens)`);
+      return true;
     } catch (error) {
       console.error('Error storing entry vector:', error);
       return false;
@@ -98,7 +96,7 @@ export class VectorService {
       );
 
       console.log(`✅ Found ${results.length} similar entries`);
-      return results;
+      return results.map(result => result.entry);
     } catch (error) {
       console.error('Error searching similar entries:', error);
       return [];
@@ -168,12 +166,7 @@ export class VectorService {
       console.log(`🔗 Finding related entries for ${entryId}`);
       
       // Get all user entries and find the target entry
-      const allEntries = await dataStaxService.searchSimilar(
-        [], // Empty vector - we'll use a different approach
-        userId,
-        100,
-        0
-      );
+      const allEntries = await dataStaxService.getUserEntries(userId, 100);
       
       const targetEntry = allEntries.find(entry => entry.entryId === entryId);
       
@@ -183,15 +176,17 @@ export class VectorService {
       }
 
       // Search for similar entries using the target entry's vector
-      const relatedEntries = await dataStaxService.searchSimilar(
+      const relatedResults = await dataStaxService.searchSimilar(
         targetEntry.$vector,
         userId,
         limit + 1, // +1 because the target entry will be included
         0.6
       );
 
-      // Filter out the target entry itself
-      const filtered = relatedEntries.filter(entry => entry.entryId !== entryId);
+      // Filter out the target entry itself and extract entries
+      const filtered = relatedResults
+        .map(result => result.entry)
+        .filter(entry => entry.entryId !== entryId);
       
       console.log(`✅ Found ${filtered.length} related entries`);
       return filtered.slice(0, limit);
@@ -208,13 +203,9 @@ export class VectorService {
     try {
       console.log(`🗑️ Deleting vector for entry ${entryId}`);
       
-      const success = await dataStaxService.deleteEmbedding(entryId);
-      
-      if (success) {
-        console.log(`✅ Deleted vector for entry ${entryId}`);
-      }
-      
-      return success;
+      await dataStaxService.deleteEmbedding(entryId);
+      console.log(`✅ Deleted vector for entry ${entryId}`);
+      return true;
     } catch (error) {
       console.error('Error deleting entry vector:', error);
       return false;
@@ -231,12 +222,57 @@ export class VectorService {
     try {
       console.log(`📊 Generating insights for user ${userId}`);
       
-      const insights = await dataStaxService.getInsights(userId, timeRange);
+      // Get all user entries
+      const entries = await dataStaxService.getUserEntries(userId);
       
-      if (insights) {
-        console.log(`✅ Generated insights: ${insights.totalEntries} entries analyzed`);
+      if (entries.length === 0) {
+        return {
+          totalEntries: 0,
+          averageWordCount: 0,
+          commonTags: [],
+          moodDistribution: {},
+          timeRange: timeRange || { start: new Date(), end: new Date() }
+        };
       }
+
+      // Calculate insights
+      const totalEntries = entries.length;
+      const averageWordCount = entries.reduce((sum, entry) => sum + (entry.metadata?.wordCount || 0), 0) / totalEntries;
       
+      // Extract common tags
+      const allTags: string[] = [];
+      entries.forEach(entry => {
+        if (entry.metadata?.tags) {
+          allTags.push(...entry.metadata.tags);
+        }
+      });
+      
+      const tagCounts: { [key: string]: number } = {};
+      allTags.forEach(tag => {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      });
+      
+      const commonTags = Object.entries(tagCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([tag]) => tag);
+
+      // Calculate mood distribution
+      const moodDistribution: { [mood: string]: number } = {};
+      entries.forEach(entry => {
+        const mood = entry.metadata?.mood || 'unknown';
+        moodDistribution[mood] = (moodDistribution[mood] || 0) + 1;
+      });
+
+      const insights = {
+        totalEntries,
+        averageWordCount,
+        commonTags,
+        moodDistribution,
+        timeRange: timeRange || { start: new Date(), end: new Date() }
+      };
+      
+      console.log(`✅ Generated insights: ${totalEntries} entries analyzed`);
       return insights;
     } catch (error) {
       console.error('Error getting user insights:', error);
@@ -256,9 +292,9 @@ export class VectorService {
     const openaiStatus = embeddingService.getStatus();
     
     return {
-      datastax: datastaxHealth,
+      datastax: datastaxHealth.status === 'ok',
       openai: openaiStatus.configured,
-      overall: datastaxHealth && openaiStatus.configured
+      overall: datastaxHealth.status === 'ok' && openaiStatus.configured
     };
   }
 

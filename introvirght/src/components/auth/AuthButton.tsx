@@ -19,14 +19,29 @@ const AuthButton: React.FC = () => {
         {/* User Menu Button */}
         <button
           onClick={() => setShowUserMenu(!showUserMenu)}
-          className="flex items-center space-x-2 text-stone-700 hover:text-sage-600 transition-colors duration-200"
+          className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+          style={{ color: 'var(--neutral-700)' }}
         >
-          <div className="w-8 h-8 bg-sage-100 rounded-full flex items-center justify-center">
-            <span className="text-sage-700 font-medium text-sm">
+          <div style={{ 
+            width: '32px', 
+            height: '32px', 
+            backgroundColor: 'var(--neutral-100)', 
+            borderRadius: '50%', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center' 
+          }}>
+            <span style={{ 
+              color: 'var(--secondary)', 
+              fontWeight: '500', 
+              fontSize: 'var(--text-sm)' 
+            }}>
               {user.username.charAt(0).toUpperCase()}
             </span>
           </div>
-          <span className="hidden sm:block font-medium">{user.username}</span>
+          <span className="hidden sm:block" style={{ fontWeight: '500' }}>
+            {user.username}
+          </span>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
@@ -42,10 +57,30 @@ const AuthButton: React.FC = () => {
             />
             
             {/* Menu */}
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-stone-200 py-2 z-20">
-              <div className="px-4 py-2 border-b border-stone-100">
-                <p className="font-medium text-stone-800">{user.username}</p>
-                <p className="text-sm text-stone-500">{user.email}</p>
+            <div className="absolute right-0 mt-2 w-48 z-20" style={{
+              backgroundColor: 'var(--bg-primary)',
+              borderRadius: 'var(--radius-lg)',
+              boxShadow: 'var(--shadow-lg)',
+              border: '1px solid var(--neutral-200)',
+              padding: 'var(--space-2) 0'
+            }}>
+              <div style={{ 
+                padding: 'var(--space-4)', 
+                borderBottom: '1px solid var(--neutral-100)' 
+              }}>
+                <p style={{ 
+                  fontWeight: '500', 
+                  color: 'var(--primary)',
+                  marginBottom: 'var(--space-1)'
+                }}>
+                  {user.username}
+                </p>
+                <p style={{ 
+                  fontSize: 'var(--text-sm)', 
+                  color: 'var(--neutral-500)' 
+                }}>
+                  {user.email}
+                </p>
               </div>
               
               <button
@@ -53,7 +88,11 @@ const AuthButton: React.FC = () => {
                   setShowUserMenu(false);
                   // Navigate to profile - will implement later
                 }}
-                className="w-full text-left px-4 py-2 text-stone-700 hover:bg-stone-50 transition-colors duration-200"
+                className="w-full text-left hover:bg-gray-50 transition-colors"
+                style={{ 
+                  padding: 'var(--space-2) var(--space-4)', 
+                  color: 'var(--neutral-700)' 
+                }}
               >
                 View Profile
               </button>
@@ -63,16 +102,28 @@ const AuthButton: React.FC = () => {
                   setShowUserMenu(false);
                   // Navigate to settings - will implement later
                 }}
-                className="w-full text-left px-4 py-2 text-stone-700 hover:bg-stone-50 transition-colors duration-200"
+                className="w-full text-left hover:bg-gray-50 transition-colors"
+                style={{ 
+                  padding: 'var(--space-2) var(--space-4)', 
+                  color: 'var(--neutral-700)' 
+                }}
               >
                 Settings
               </button>
               
-              <hr className="my-2 border-stone-100" />
+              <hr style={{ 
+                margin: 'var(--space-2) 0', 
+                border: 'none',
+                borderTop: '1px solid var(--neutral-100)' 
+              }} />
               
               <button
                 onClick={handleLogout}
-                className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 transition-colors duration-200"
+                className="w-full text-left hover:bg-red-50 transition-colors"
+                style={{ 
+                  padding: 'var(--space-2) var(--space-4)', 
+                  color: '#ef4444' 
+                }}
               >
                 Sign Out
               </button>
@@ -85,13 +136,13 @@ const AuthButton: React.FC = () => {
 
   return (
     <>
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
         <button
           onClick={() => {
             setAuthMode('login');
             setShowAuthModal(true);
           }}
-          className="bg-gradient-to-r from-gray-500 to-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-md"
+          className="btn-ghost"
         >
           Sign In
         </button>
@@ -100,7 +151,7 @@ const AuthButton: React.FC = () => {
             setAuthMode('register');
             setShowAuthModal(true);
           }}
-          className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-2 rounded-xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg"
+          className="btn-primary"
         >
           Join Now
         </button>

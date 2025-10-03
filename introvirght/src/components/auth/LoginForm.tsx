@@ -78,38 +78,23 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) 
   };
 
   return (
-    <div 
-      style={{
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        border: '1px solid #e5e7eb',
-        padding: '24px',
-        maxWidth: '28rem',
-        margin: '0 auto'
-      }}
-    >
+    <div className="card-elevated" style={{ maxWidth: '28rem', margin: '0 auto' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Header */}
-        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <h2 
-            style={{
-              fontSize: '24px',
-              fontFamily: 'serif',
-              fontWeight: '600',
-              color: '#1f2937',
-              margin: 0
-            }}
-          >
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <h2 style={{
+            fontSize: 'var(--text-2xl)',
+            fontWeight: '600',
+            color: 'var(--primary)',
+            margin: 0
+          }}>
             Welcome Back
           </h2>
-          <p 
-            style={{
-              color: '#6b7280',
-              fontSize: '14px',
-              margin: 0
-            }}
-          >
+          <p style={{
+            color: 'var(--neutral-600)',
+            fontSize: 'var(--text-sm)',
+            margin: 0
+          }}>
             Continue your journey of mindful connection
           </p>
         </div>
@@ -127,16 +112,16 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) 
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           {/* Email Field */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             <label 
               htmlFor="email" 
               style={{
                 display: 'block',
-                fontSize: '14px',
+                fontSize: 'var(--text-sm)',
                 fontWeight: '500',
-                color: '#374151'
+                color: 'var(--neutral-700)'
               }}
             >
               Email Address
@@ -147,21 +132,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) 
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               onBlur={() => handleBlur('email')}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                border: hasFieldError(fieldErrors, 'email') ? '1px solid #fca5a5' : '1px solid #d1d5db',
-                backgroundColor: 'white',
-                fontSize: '16px',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
+              className={`input-field ${hasFieldError(fieldErrors, 'email') ? 'border-red-300' : ''}`}
               placeholder="Enter your email address"
               disabled={isLoading}
             />
             {hasFieldError(fieldErrors, 'email') && (
-              <p style={{ color: '#dc2626', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <p style={{ color: '#ef4444', fontSize: 'var(--text-sm)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
                 <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -171,14 +147,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) 
           </div>
 
           {/* Password Field */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
             <label 
               htmlFor="password" 
               style={{
                 display: 'block',
-                fontSize: '14px',
+                fontSize: 'var(--text-sm)',
                 fontWeight: '500',
-                color: '#374151'
+                color: 'var(--neutral-700)'
               }}
             >
               Password
@@ -189,21 +165,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) 
               value={formData.password}
               onChange={(e) => handleInputChange('password', e.target.value)}
               onBlur={() => handleBlur('password')}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                borderRadius: '8px',
-                border: hasFieldError(fieldErrors, 'password') ? '1px solid #fca5a5' : '1px solid #d1d5db',
-                backgroundColor: 'white',
-                fontSize: '16px',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
+              className={`input-field ${hasFieldError(fieldErrors, 'password') ? 'border-red-300' : ''}`}
               placeholder="Enter your password"
               disabled={isLoading}
             />
             {hasFieldError(fieldErrors, 'password') && (
-              <p style={{ color: '#dc2626', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <p style={{ color: '#ef4444', fontSize: 'var(--text-sm)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
                 <svg style={{ width: '16px', height: '16px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -213,22 +180,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) 
           </div>
 
           {/* Quick Test Login */}
-          <div 
-            style={{
-              backgroundColor: '#eff6ff',
-              border: '1px solid #bfdbfe',
-              borderRadius: '12px',
-              padding: '16px'
-            }}
-          >
-            <p 
-              style={{
-                fontSize: '14px',
-                fontWeight: '500',
-                color: '#1e40af',
-                marginBottom: '8px'
-              }}
-            >
+          <div className="bg-accent-subtle" style={{
+            border: '1px solid var(--neutral-200)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-4)'
+          }}>
+            <p style={{
+              fontSize: 'var(--text-sm)',
+              fontWeight: '500',
+              color: 'var(--secondary)',
+              marginBottom: 'var(--space-2)'
+            }}>
               Quick Test Login:
             </p>
             <button
@@ -239,14 +201,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) 
                   password: 'password123'
                 });
               }}
-              style={{
-                color: '#2563eb',
-                textDecoration: 'underline',
-                fontSize: '14px',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer'
-              }}
+              className="btn-ghost"
+              style={{ padding: '0', fontSize: 'var(--text-sm)' }}
             >
               Fill test credentials
             </button>
@@ -256,35 +212,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) 
           <button
             type="submit"
             disabled={isLoading || fieldErrors.length > 0}
+            className="btn-primary w-full"
             style={{
-              width: '100%',
-              background: 'linear-gradient(to right, #3b82f6, #6366f1)',
-              color: 'white',
-              padding: '12px 24px',
-              borderRadius: '12px',
-              fontWeight: '600',
-              border: 'none',
-              cursor: isLoading || fieldErrors.length > 0 ? 'not-allowed' : 'pointer',
               opacity: isLoading || fieldErrors.length > 0 ? 0.5 : 1,
+              cursor: isLoading || fieldErrors.length > 0 ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '8px',
-              fontSize: '16px'
+              gap: 'var(--space-2)'
             }}
           >
             {isLoading ? (
               <>
-                <div 
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    border: '2px solid transparent',
-                    borderTop: '2px solid white',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }}
-                ></div>
+                <div className="loading-spinner" style={{ width: '16px', height: '16px' }}></div>
                 <span>Signing in...</span>
               </>
             ) : (
@@ -295,13 +235,21 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) 
 
         {/* Switch to Register */}
         {onSwitchToRegister && (
-          <div className="text-center pt-4 border-t border-gray-200">
-            <p className="text-gray-600 text-sm">
+          <div className="text-center" style={{ 
+            paddingTop: 'var(--space-4)', 
+            borderTop: '1px solid var(--neutral-200)' 
+          }}>
+            <p style={{ color: 'var(--neutral-600)', fontSize: 'var(--text-sm)' }}>
               New to Introvirght?{' '}
               <button
                 type="button"
                 onClick={onSwitchToRegister}
-                className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
+                className="btn-ghost"
+                style={{ 
+                  padding: '0', 
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: '500'
+                }}
               >
                 Create an account
               </button>
@@ -310,8 +258,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) 
         )}
 
         {/* Inspirational Quote */}
-        <div className="text-center pt-4">
-          <p className="text-gray-500 text-sm italic font-serif">
+        <div className="text-center" style={{ paddingTop: 'var(--space-4)' }}>
+          <p style={{ 
+            color: 'var(--neutral-500)', 
+            fontSize: 'var(--text-sm)', 
+            fontStyle: 'italic' 
+          }}>
             "The journey inward is the most important journey of all."
           </p>
         </div>
