@@ -4,11 +4,12 @@
   "description": "Backend API for Introvirght social platform",
   "main": "dist/index.js",
   "scripts": {
-    "build": "echo 'Using ts-node - no build needed'",
+    "build": "echo 'Vercel handles TypeScript compilation'",
     "start": "npx ts-node --transpile-only src/index.ts",
     "start:prod": "node dist/index.js",
     "dev": "nodemon src/index.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "vercel-build": "echo 'No build step needed for Vercel'"
   },
   "keywords": [
     "social",
