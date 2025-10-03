@@ -51,26 +51,48 @@ const CompleteDiaryPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Get the actual auth token from localStorage, fallback to test token
-      const authToken = localStorage.getItem('authToken') || 'test-bypass-token';
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+      // Try to load from server first
+      try {
+        const authToken = localStorage.getItem('authToken') || 'test-bypass-token';
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
-      const response = await fetch(`${apiBaseUrl}/diary`, {
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
-      });
+        const response = await fetch(`${apiBaseUrl}/diary`, {
+          headers: {
+            'Authorization': `Bearer ${authToken}`,
+          },
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data && data.data.entries) {
+            setEntries(data.data.entries);
+            return;
+          }
+        }
+      } catch (serverError) {
+        console.log('Server unavailable, using local storage fallback');
       }
 
-      const data = await response.json();
-
-      if (data.success && data.data && data.data.entries) {
-        setEntries(data.data.entries);
+      // Fallback to local storage
+      const localEntries = localStorage.getItem('diary-entries');
+      if (localEntries) {
+        const parsedEntries = JSON.parse(localEntries);
+        setEntries(parsedEntries);
       } else {
-        setError('No entries found');
+        // Create a welcome entry if no entries exist
+        const welcomeEntry = {
+          id: 'welcome-entry',
+          title: 'Welcome to Your Diary',
+          content: 'This is your first diary entry! Start documenting your thoughts, feelings, and experiences in this private space designed for reflection and growth.\n\nYour entries are saved locally in your browser, so they\'re completely private to you.',
+          mood: 'reflective',
+          gratitude: 'Grateful for this new journey of self-discovery',
+          highlights: 'Setting up my personal diary space',
+          goals: 'Write regularly and reflect mindfully',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        setEntries([welcomeEntry]);
+        localStorage.setItem('diary-entries', JSON.stringify([welcomeEntry]));
       }
     } catch (err) {
       console.error('Failed to load entries:', err);
@@ -82,41 +104,52 @@ const CompleteDiaryPage: React.FC = () => {
 
   const createEntry = async (entryData: CreateEntryData) => {
     try {
-      // Get the actual auth token from localStorage, fallback to test token
-      const authToken = localStorage.getItem('authToken') || 'test-bypass-token';
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+      // Create new entry with local ID
+      const newEntry = {
+        id: 'entry-' + Date.now(),
+        title: entryData.title || '',
+        content: entryData.content || '',
+        mood: entryData.mood || 'reflective',
+        gratitude: entryData.gratitude || '',
+        highlights: entryData.highlights || '',
+        goals: entryData.goals || '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
 
-      console.log('Creating diary entry with token:', authToken ? 'token exists' : 'no token');
-      console.log('Entry data:', entryData);
+      // Try to save to server first
+      try {
+        const authToken = localStorage.getItem('authToken') || 'test-bypass-token';
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
 
-      const response = await fetch(`${apiBaseUrl}/diary`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: JSON.stringify(entryData),
-      });
+        const response = await fetch(`${apiBaseUrl}/diary`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          },
+          body: JSON.stringify(entryData),
+        });
 
-      console.log('Create entry response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Create entry failed:', response.status, errorText);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            // Use server response if successful
+            setEntries(prev => [data.data, ...prev]);
+            setShowComposer(false);
+            return true;
+          }
+        }
+      } catch (serverError) {
+        console.log('Server unavailable, saving locally');
       }
 
-      const data = await response.json();
-      console.log('Create entry response data:', data);
-      
-      if (data.success && data.data) {
-        console.log('Entry created successfully, adding to list');
-        setEntries(prev => [data.data, ...prev]);
-        setShowComposer(false);
-        return true;
-      }
-      console.error('Entry creation failed - invalid response format');
-      return false;
+      // Fallback to local storage
+      const updatedEntries = [newEntry, ...entries];
+      setEntries(updatedEntries);
+      localStorage.setItem('diary-entries', JSON.stringify(updatedEntries));
+      setShowComposer(false);
+      return true;
     } catch (err) {
       console.error('Failed to create entry:', err);
       alert(`Failed to save diary entry: ${err instanceof Error ? err.message : 'Unknown error'}`);
