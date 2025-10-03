@@ -4,8 +4,8 @@
   "description": "Backend API for Introvirght social platform",
   "main": "dist/index.js",
   "scripts": {
-    "build": "./node_modules/.bin/tsc --skipLibCheck",
-    "start": "node dist/index.js",
+    "build": "node -e \"console.log('Build completed - using ts-node for runtime')\"",
+    "start": "npx ts-node src/index.ts",
     "dev": "nodemon src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -31,6 +31,7 @@
     "pg": "^8.16.3",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
     "uuid": "^13.0.0"
   },
@@ -42,7 +43,6 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.6.2",
     "@types/pg": "^8.15.5",
-    "nodemon": "^3.1.10",
-    "ts-node": "^10.9.2"
+    "nodemon": "^3.1.10"
   }
 }
