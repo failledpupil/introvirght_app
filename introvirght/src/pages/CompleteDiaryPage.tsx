@@ -51,29 +51,7 @@ const CompleteDiaryPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Try to load from server first
-      try {
-        const authToken = localStorage.getItem('authToken') || 'test-bypass-token';
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
-
-        const response = await fetch(`${apiBaseUrl}/diary`, {
-          headers: {
-            'Authorization': `Bearer ${authToken}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data && data.data.entries) {
-            setEntries(data.data.entries);
-            return;
-          }
-        }
-      } catch (serverError) {
-        console.log('Server unavailable, using local storage fallback');
-      }
-
-      // Fallback to local storage
+      // Load from local storage only - no server dependency
       const localEntries = localStorage.getItem('diary-entries');
       if (localEntries) {
         const parsedEntries = JSON.parse(localEntries);
@@ -83,7 +61,7 @@ const CompleteDiaryPage: React.FC = () => {
         const welcomeEntry = {
           id: 'welcome-entry',
           title: 'Welcome to Your Diary',
-          content: 'This is your first diary entry! Start documenting your thoughts, feelings, and experiences in this private space designed for reflection and growth.\n\nYour entries are saved locally in your browser, so they\'re completely private to you.',
+          content: 'This is your first diary entry! Start documenting your thoughts, feelings, and experiences in this private space designed for reflection and growth.\n\nYour entries are saved locally in your browser, so they\'re completely private to you. No server connection required!',
           mood: 'reflective',
           gratitude: 'Grateful for this new journey of self-discovery',
           highlights: 'Setting up my personal diary space',
@@ -104,7 +82,7 @@ const CompleteDiaryPage: React.FC = () => {
 
   const createEntry = async (entryData: CreateEntryData) => {
     try {
-      // Create new entry with local ID
+      // Create new entry with local ID - completely offline
       const newEntry = {
         id: 'entry-' + Date.now(),
         title: entryData.title || '',
@@ -117,34 +95,7 @@ const CompleteDiaryPage: React.FC = () => {
         updatedAt: new Date().toISOString()
       };
 
-      // Try to save to server first
-      try {
-        const authToken = localStorage.getItem('authToken') || 'test-bypass-token';
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
-
-        const response = await fetch(`${apiBaseUrl}/diary`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-          },
-          body: JSON.stringify(entryData),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data) {
-            // Use server response if successful
-            setEntries(prev => [data.data, ...prev]);
-            setShowComposer(false);
-            return true;
-          }
-        }
-      } catch (serverError) {
-        console.log('Server unavailable, saving locally');
-      }
-
-      // Fallback to local storage
+      // Save to local storage only - no server dependency
       const updatedEntries = [newEntry, ...entries];
       setEntries(updatedEntries);
       localStorage.setItem('diary-entries', JSON.stringify(updatedEntries));
