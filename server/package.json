@@ -4,7 +4,7 @@
   "description": "Backend API for Introvirght social platform",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc --outDir dist --skipLibCheck",
+    "build": "tsc --skipLibCheck --noEmitOnError false",
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
