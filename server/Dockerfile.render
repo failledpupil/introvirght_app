@@ -1,0 +1,18 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including devDependencies for build)
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 10000
+
+# Start with ts-node
+CMD ["npx", "ts-node", "src/index.ts"]

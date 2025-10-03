@@ -3,7 +3,7 @@ services:
     name: introvirght-backend
     env: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
     envVars:
@@ -11,4 +11,3 @@ services:
         value: production
       - key: PORT
         value: 10000
-    autoDeploy: false
