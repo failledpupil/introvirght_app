@@ -4,7 +4,7 @@
   "description": "Backend API for Introvirght social platform",
   "main": "dist/index.js",
   "scripts": {
-    "build": "npx tsc",
+    "build": "echo 'Using ts-node - no build needed'",
     "start": "npx ts-node --transpile-only src/index.ts",
     "start:prod": "node dist/index.js",
     "dev": "nodemon src/index.ts",
