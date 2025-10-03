@@ -21,6 +21,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const PRODUCTION_URLS = [
     'https://introvirght.vercel.app',
     'https://introvirght-frontend.vercel.app',
+    'https://introvirght-app-git-main-failledpupils-projects.vercel.app',
     'https://your-custom-domain.com'
 ];
 
