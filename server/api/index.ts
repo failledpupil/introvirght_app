@@ -76,6 +76,122 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    // Diary endpoints
+    if (req.url === '/api/diary' && req.method === 'GET') {
+      console.log('Diary GET request');
+      
+      // Return demo diary entries
+      return res.status(200).json({
+        success: true,
+        data: {
+          entries: [
+            {
+              id: 'entry-1',
+              title: 'Welcome to Your Diary',
+              content: 'This is your first diary entry! Start documenting your thoughts, feelings, and experiences in this private space designed for reflection and growth.',
+              mood: 'reflective',
+              gratitude: 'Grateful for this new journey of self-discovery',
+              highlights: 'Setting up my personal diary space',
+              goals: 'Write regularly and reflect mindfully',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }
+          ],
+          pagination: {
+            page: 1,
+            limit: 10,
+            total: 1,
+            hasMore: false
+          }
+        }
+      });
+    }
+
+    if (req.url === '/api/diary' && req.method === 'POST') {
+      const body = req.body || {};
+      console.log('Diary POST request:', body);
+      
+      // Create new diary entry
+      const newEntry = {
+        id: 'entry-' + Date.now(),
+        title: body.title || '',
+        content: body.content || '',
+        mood: body.mood || 'reflective',
+        gratitude: body.gratitude || '',
+        highlights: body.highlights || '',
+        goals: body.goals || '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      return res.status(201).json({
+        success: true,
+        message: 'Diary entry created successfully',
+        data: newEntry
+      });
+    }
+
+    // Posts endpoints
+    if (req.url === '/api/posts' && req.method === 'GET') {
+      console.log('Posts GET request');
+      
+      return res.status(200).json({
+        success: true,
+        data: {
+          posts: [
+            {
+              id: 'post-1',
+              content: 'Welcome to Introvirght! This is a demo post to show how the platform works.',
+              author: {
+                id: 'demo-user-123',
+                username: 'demo-user',
+                email: 'demo@example.com'
+              },
+              likeCount: 0,
+              repostCount: 0,
+              isLikedByCurrentUser: false,
+              isRepostedByCurrentUser: false,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            }
+          ],
+          pagination: {
+            page: 1,
+            limit: 10,
+            total: 1,
+            hasMore: false
+          }
+        }
+      });
+    }
+
+    if (req.url === '/api/posts' && req.method === 'POST') {
+      const body = req.body || {};
+      console.log('Posts POST request:', body);
+      
+      const newPost = {
+        id: 'post-' + Date.now(),
+        content: body.content || '',
+        author: {
+          id: 'demo-user-123',
+          username: 'demo-user',
+          email: 'demo@example.com'
+        },
+        likeCount: 0,
+        repostCount: 0,
+        isLikedByCurrentUser: false,
+        isRepostedByCurrentUser: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      return res.status(201).json({
+        success: true,
+        message: 'Post created successfully',
+        data: newPost
+      });
+    }
+
   // Simple API endpoints for testing
   if (req.url?.startsWith('/api/')) {
     return res.status(200).json({
