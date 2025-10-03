@@ -1,0 +1,9 @@
+name: introvirght-backend
+runtime: nodejs18
+build:
+  commands:
+    - npm install
+start: npm start
+env:
+  NODE_ENV: production
+  PORT: 3000
