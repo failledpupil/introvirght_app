@@ -59,73 +59,42 @@ export const useAuthFixed = () => {
     initializeAuth();
   }, []);
 
-  // Login function
+  // Login function (client-side)
   const login = async (credentials: LoginCredentials): Promise<{ success: boolean; errors?: string[] }> => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true, error: undefined }));
 
-      console.log('🔍 Attempting login for:', credentials.email);
+      console.log('✅ Client-side login for:', credentials.email);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
+      // Client-side authentication - accept any credentials
+      const user: AuthUser = {
+        id: 'demo-user-' + Date.now(),
+        username: credentials.email.split('@')[0] || 'user',
+        email: credentials.email,
+        bio: 'Demo user account',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        followerCount: 0,
+        followingCount: 0,
+        postCount: 0,
+      };
+      
+      const token = 'demo-token-' + Date.now();
+      
+      // Store token and user data
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      setAuthState({
+        user,
+        isAuthenticated: true,
+        isLoading: false,
       });
 
-      console.log('🔍 Login response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData.error?.message || 'Login failed';
-        console.log('❌ Login failed:', errorMessage);
-        
-        setAuthState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: errorMessage,
-        }));
-
-        return {
-          success: false,
-          errors: [errorMessage],
-        };
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        const { user, token } = data.data;
-        console.log('✅ Login successful, user:', user.username);
-        
-        // Store token and user data
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('user', JSON.stringify(user));
-
-        setAuthState({
-          user,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-
-        return { success: true };
-      } else {
-        const errorMessage = 'Login failed';
-        setAuthState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: errorMessage,
-        }));
-
-        return {
-          success: false,
-          errors: [errorMessage],
-        };
-      }
+      return { success: true };
     } catch (error) {
-      console.error('❌ Login network error:', error);
-      const errorMessage = 'Unable to connect to server';
+      console.error('❌ Login error:', error);
+      const errorMessage = 'Login failed';
       setAuthState(prev => ({
         ...prev,
         isLoading: false,
@@ -139,65 +108,41 @@ export const useAuthFixed = () => {
     }
   };
 
-  // Register function - simplified
+  // Register function (client-side)
   const register = async (userData: RegisterData): Promise<{ success: boolean; errors?: string[] }> => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true, error: undefined }));
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
+      console.log('✅ Client-side register for:', userData.email);
+      
+      // Client-side registration - accept any data
+      const user: AuthUser = {
+        id: 'demo-user-' + Date.now(),
+        username: userData.username,
+        email: userData.email,
+        bio: userData.bio || '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        followerCount: 0,
+        followingCount: 0,
+        postCount: 0,
+      };
+      
+      const token = 'demo-token-' + Date.now();
+      
+      // Store token and user data
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      setAuthState({
+        user,
+        isAuthenticated: true,
+        isLoading: false,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorMessage = errorData.error?.message || 'Registration failed';
-        setAuthState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: errorMessage,
-        }));
-
-        return {
-          success: false,
-          errors: [errorMessage],
-        };
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        const { user, token } = data.data;
-        
-        // Store token and user data
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('user', JSON.stringify(user));
-
-        setAuthState({
-          user,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-
-        return { success: true };
-      } else {
-        const errorMessage = 'Registration failed';
-        setAuthState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: errorMessage,
-        }));
-
-        return {
-          success: false,
-          errors: [errorMessage],
-        };
-      }
+      return { success: true };
     } catch (error) {
-      const errorMessage = 'Unable to connect to server';
+      const errorMessage = 'Registration failed';
       setAuthState(prev => ({
         ...prev,
         isLoading: false,

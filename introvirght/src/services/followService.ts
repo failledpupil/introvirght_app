@@ -1,326 +1,304 @@
-import type { User, FollowWithUser, FollowStats, ApiResponse } from '../types';
+import type { User, ApiResponse } from '../types';
 
-// API base URL - points to our backend server
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
-
-// Follow service class for handling follow-related API calls
+// Follow service class for handling follow-related operations (client-side)
 export class FollowService {
-  // Follow a user
-  static async followUser(userId: string): Promise<ApiResponse<{ following: boolean; followerCount: number }>> {
+  /**
+   * Helper method to get stored follows from localStorage
+   */
+  private static getStoredFollows(): { following: string[]; followers: string[] } {
     try {
-      const token = localStorage.getItem('authToken');
+      const stored = localStorage.getItem('userFollows');
+      if (!stored) return { following: [], followers: [] };
       
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/follow`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      return JSON.parse(stored);
+    } catch {
+      return { following: [], followers: [] };
+    }
+  }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FOLLOW_FAILED', message: 'Failed to follow user' },
-        };
+  /**
+   * Helper method to store follows to localStorage
+   */
+  private static storeFollows(follows: { following: string[]; followers: string[] }): void {
+    localStorage.setItem('userFollows', JSON.stringify(follows));
+  }
+
+  // Follow a user (client-side)
+  static async followUser(userId: string): Promise<ApiResponse<{ isFollowing: boolean; followerCount: number }>> {
+    try {
+      console.log('✅ Client-side followUser:', userId);
+      
+      const follows = this.getStoredFollows();
+      
+      if (!follows.following.includes(userId)) {
+        follows.following.push(userId);
+        this.storeFollows(follows);
       }
 
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: {
+          isFollowing: true,
+          followerCount: follows.followers.length + 1, // Demo count
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to follow user',
         },
       };
     }
   }
 
-  // Unfollow a user
-  static async unfollowUser(userId: string): Promise<ApiResponse<{ following: boolean; followerCount: number }>> {
+  // Unfollow a user (client-side)
+  static async unfollowUser(userId: string): Promise<ApiResponse<{ isFollowing: boolean; followerCount: number }>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side unfollowUser:', userId);
       
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/follow`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const follows = this.getStoredFollows();
+      follows.following = follows.following.filter(id => id !== userId);
+      this.storeFollows(follows);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'UNFOLLOW_FAILED', message: 'Failed to unfollow user' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: {
+          isFollowing: false,
+          followerCount: Math.max(0, follows.followers.length - 1), // Demo count
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to unfollow user',
         },
       };
     }
   }
 
-  // Get user's followers
-  static async getFollowers(userId: string, page: number = 1, limit: number = 20): Promise<ApiResponse<{ followers: FollowWithUser[]; hasMore: boolean }>> {
+  // Get user's followers (client-side)
+  static async getFollowers(userId: string, page: number = 1, limit: number = 20): Promise<ApiResponse<{ users: User[]; hasMore: boolean }>> {
     try {
-      const token = localStorage.getItem('authToken');
-      const offset = (page - 1) * limit;
+      console.log('✅ Client-side getFollowers for:', userId);
       
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/followers?limit=${limit}&offset=${offset}`, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`,
-        } : {},
-      });
+      // Return demo followers
+      const demoFollowers: User[] = [
+        {
+          id: 'demo-follower-1',
+          username: 'follower1',
+          email: 'follower1@example.com',
+          bio: 'Demo follower',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          followerCount: 5,
+          followingCount: 10,
+          postCount: 3,
+        }
+      ];
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_FOLLOWERS_FAILED', message: 'Failed to fetch followers' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: {
+          users: demoFollowers,
+          hasMore: false,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to fetch followers',
         },
       };
     }
   }
 
-  // Get users that a user is following
-  static async getFollowing(userId: string, page: number = 1, limit: number = 20): Promise<ApiResponse<{ following: FollowWithUser[]; hasMore: boolean }>> {
+  // Get users that a user is following (client-side)
+  static async getFollowing(userId: string, page: number = 1, limit: number = 20): Promise<ApiResponse<{ users: User[]; hasMore: boolean }>> {
     try {
-      const token = localStorage.getItem('authToken');
-      const offset = (page - 1) * limit;
+      console.log('✅ Client-side getFollowing for:', userId);
       
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/following?limit=${limit}&offset=${offset}`, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`,
-        } : {},
-      });
+      const follows = this.getStoredFollows();
+      
+      // Convert following IDs to demo user objects
+      const followingUsers: User[] = follows.following.map((id, index) => ({
+        id,
+        username: `user${index + 1}`,
+        email: `user${index + 1}@example.com`,
+        bio: 'Demo user you are following',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        followerCount: Math.floor(Math.random() * 100),
+        followingCount: Math.floor(Math.random() * 50),
+        postCount: Math.floor(Math.random() * 20),
+      }));
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_FOLLOWING_FAILED', message: 'Failed to fetch following' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: {
+          users: followingUsers,
+          hasMore: false,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to fetch following',
         },
       };
     }
   }
 
-  // Get follow statistics for a user
-  static async getFollowStats(userId: string): Promise<ApiResponse<FollowStats>> {
+  // Get follow statistics (client-side)
+  static async getFollowStats(userId: string): Promise<ApiResponse<{ followerCount: number; followingCount: number }>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side getFollowStats for:', userId);
       
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/follow-stats`, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`,
-        } : {},
-      });
+      const follows = this.getStoredFollows();
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_STATS_FAILED', message: 'Failed to fetch follow stats' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: {
+          followerCount: follows.followers.length,
+          followingCount: follows.following.length,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to fetch follow stats',
         },
       };
     }
   }
 
-  // Get suggested users to follow
+  // Get suggested users to follow (client-side)
   static async getSuggestedUsers(limit: number = 10): Promise<ApiResponse<{ users: User[] }>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side getSuggestedUsers, limit:', limit);
       
-      const response = await fetch(`${API_BASE_URL}/users/suggestions?limit=${limit}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
+      // Return demo suggested users
+      const suggestedUsers: User[] = [
+        {
+          id: 'suggested-1',
+          username: 'mindful_writer',
+          email: 'mindful@example.com',
+          bio: 'Sharing thoughts on mindfulness and personal growth',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          followerCount: 150,
+          followingCount: 75,
+          postCount: 42,
         },
-      });
+        {
+          id: 'suggested-2',
+          username: 'reflection_daily',
+          email: 'reflect@example.com',
+          bio: 'Daily reflections and insights for better living',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          followerCount: 89,
+          followingCount: 120,
+          postCount: 28,
+        },
+      ];
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_SUGGESTIONS_FAILED', message: 'Failed to fetch suggestions' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: {
+          users: suggestedUsers.slice(0, limit),
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to fetch suggested users',
         },
       };
     }
   }
 
-  // Get mutual follows
-  static async getMutualFollows(userId: string, page: number = 1, limit: number = 20): Promise<ApiResponse<{ mutualFollows: FollowWithUser[]; hasMore: boolean }>> {
+  // Get mutual follows (client-side)
+  static async getMutualFollows(userId: string, page: number = 1, limit: number = 20): Promise<ApiResponse<{ users: User[]; hasMore: boolean }>> {
     try {
-      const token = localStorage.getItem('authToken');
-      const offset = (page - 1) * limit;
+      console.log('✅ Client-side getMutualFollows for:', userId);
       
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/mutual-follows?limit=${limit}&offset=${offset}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_MUTUAL_FAILED', message: 'Failed to fetch mutual follows' },
-        };
-      }
-
-      const data = await response.json();
+      // Return empty for demo
       return {
         success: true,
-        data: data.data,
+        data: {
+          users: [],
+          hasMore: false,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to fetch mutual follows',
         },
       };
     }
   }
 
-  // Get follow activity (recent follows from network)
-  static async getFollowActivity(page: number = 1, limit: number = 20): Promise<ApiResponse<{ activity: FollowWithUser[]; hasMore: boolean }>> {
+  // Get recent follow activity (client-side)
+  static async getFollowActivity(page: number = 1, limit: number = 20): Promise<ApiResponse<{ activities: any[]; hasMore: boolean }>> {
     try {
-      const token = localStorage.getItem('authToken');
-      const offset = (page - 1) * limit;
+      console.log('✅ Client-side getFollowActivity');
       
-      const response = await fetch(`${API_BASE_URL}/users/follow-activity?limit=${limit}&offset=${offset}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_ACTIVITY_FAILED', message: 'Failed to fetch follow activity' },
-        };
-      }
-
-      const data = await response.json();
+      // Return empty for demo
       return {
         success: true,
-        data: data.data,
+        data: {
+          activities: [],
+          hasMore: false,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to fetch follow activity',
         },
       };
     }
   }
 
-  // Check if current user follows a specific user
-  static async checkFollowStatus(userId: string): Promise<ApiResponse<{ isFollowing: boolean; isFollowedBy: boolean }>> {
+  // Check if current user is following another user (client-side)
+  static async getFollowStatus(userId: string): Promise<ApiResponse<{ isFollowing: boolean; isFollowedBy: boolean }>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side getFollowStatus for:', userId);
       
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/follow-status`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const follows = this.getStoredFollows();
+      const isFollowing = follows.following.includes(userId);
+      const isFollowedBy = follows.followers.includes(userId);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'CHECK_STATUS_FAILED', message: 'Failed to check follow status' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: {
+          isFollowing,
+          isFollowedBy,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to check follow status',
         },
       };
     }

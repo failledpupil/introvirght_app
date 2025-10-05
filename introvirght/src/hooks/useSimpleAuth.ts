@@ -78,61 +78,48 @@ export const useSimpleAuth = () => {
     initializeAuth();
   }, []);
 
-  // Simple login function
+  // Simple login function (client-side)
   const login = async (credentials: { email: string; password: string }) => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true, error: undefined }));
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
+      console.log('✅ Client-side login for:', credentials.email);
+      
+      // Client-side authentication - accept any credentials
+      const user: SimpleUser = {
+        id: 'demo-user-' + Date.now(),
+        username: credentials.email.split('@')[0] || 'user',
+        email: credentials.email,
+        bio: 'Demo user account',
+        isEmailVerified: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        followerCount: 0,
+        followingCount: 0,
+        postCount: 0,
+      };
+      
+      const token = 'demo-token-' + Date.now();
+      
+      // Store token and user data
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      setAuthState({
+        user,
+        isAuthenticated: true,
+        isLoading: false,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        setAuthState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: errorData.error?.message || 'Login failed',
-        }));
-        return { success: false, errors: [errorData.error?.message || 'Login failed'] };
-      }
-
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        const { user, token } = data.data;
-        
-        // Store token and user data
-        localStorage.setItem('authToken', token);
-        localStorage.setItem('user', JSON.stringify(user));
-
-        setAuthState({
-          user,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-
-        return { success: true };
-      } else {
-        setAuthState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: 'Login failed',
-        }));
-        return { success: false, errors: ['Login failed'] };
-      }
+      return { success: true };
     } catch (error) {
       console.error('Login error:', error);
       setAuthState(prev => ({
         ...prev,
         isLoading: false,
-        error: 'Unable to connect to server',
+        error: 'Login failed',
       }));
-      return { success: false, errors: ['Unable to connect to server'] };
+      return { success: false, errors: ['Login failed'] };
     }
   };
 
