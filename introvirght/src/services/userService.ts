@@ -77,16 +77,8 @@ export class UserService {
 
   static async logout(): Promise<ApiResponse<void>> {
     try {
-      const token = localStorage.getItem('authToken');
-      
-      await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      // Clear local storage regardless of response
+      // Client-side logout - just clear local storage
+      console.log('✅ Client-side logout - clearing local storage');
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
 
@@ -94,7 +86,7 @@ export class UserService {
         success: true,
       };
     } catch (error) {
-      // Clear local storage even if network fails
+      // Clear local storage even if there's an error
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
       
@@ -107,8 +99,9 @@ export class UserService {
   static async getCurrentUser(): Promise<ApiResponse<AuthUser>> {
     try {
       const token = localStorage.getItem('authToken');
+      const userStr = localStorage.getItem('user');
       
-      if (!token) {
+      if (!token || !userStr) {
         return {
           success: false,
           error: {
@@ -118,23 +111,9 @@ export class UserService {
         };
       }
 
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: {
-            code: 'AUTH_FAILED',
-            message: 'Authentication failed',
-          },
-        };
-      }
-
-      const user = await response.json();
+      // Client-side authentication - get user from local storage
+      console.log('✅ Client-side getCurrentUser - using local storage');
+      const user = JSON.parse(userStr);
       return {
         success: true,
         data: user,
@@ -143,8 +122,8 @@ export class UserService {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'PARSE_ERROR',
+          message: 'Unable to parse user data',
         },
       };
     }
@@ -153,29 +132,42 @@ export class UserService {
   // User profile endpoints
   static async getUserProfile(username: string): Promise<ApiResponse<User>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${username}`);
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: {
-            code: 'USER_NOT_FOUND',
-            message: 'User not found',
-          },
-        };
+      // Client-side profile lookup - return current user or demo user
+      console.log('✅ Client-side getUserProfile for:', username);
+      const currentUserStr = localStorage.getItem('user');
+      
+      if (currentUserStr) {
+        const currentUser = JSON.parse(currentUserStr);
+        if (currentUser.username === username) {
+          return {
+            success: true,
+            data: currentUser,
+          };
+        }
       }
 
-      const user = await response.json();
+      // Return a demo user if not found
       return {
         success: true,
-        data: user,
+        data: {
+          id: 'demo-user-' + username,
+          username: username,
+          email: username + '@example.com',
+          bio: 'Demo user profile',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          followerCount: 0,
+          followingCount: 0,
+          postCount: 0,
+          isEmailVerified: true
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'PARSE_ERROR',
+          message: 'Unable to get user profile',
         },
       };
     }
@@ -183,36 +175,35 @@ export class UserService {
 
   static async updateProfile(updates: Partial<Pick<User, 'bio'>>): Promise<ApiResponse<User>> {
     try {
-      const token = localStorage.getItem('authToken');
+      // Client-side profile update - update local storage
+      console.log('✅ Client-side updateProfile:', updates);
+      const userStr = localStorage.getItem('user');
       
-      const response = await fetch(`${API_BASE_URL}/users/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!userStr) {
         return {
           success: false,
-          error: errorData.error || { code: 'UPDATE_FAILED', message: 'Profile update failed' },
+          error: {
+            code: 'NO_USER',
+            message: 'No user found to update',
+          },
         };
       }
 
-      const user = await response.json();
+      const user = JSON.parse(userStr);
+      const updatedUser = { ...user, ...updates, updatedAt: new Date() };
+      
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
       return {
         success: true,
-        data: user,
+        data: updatedUser,
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'UPDATE_ERROR',
+          message: 'Unable to update profile',
         },
       };
     }
@@ -221,29 +212,32 @@ export class UserService {
   // Username availability check
   static async checkUsernameAvailability(username: string): Promise<ApiResponse<{ available: boolean; reason?: string }>> {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/check-username?username=${encodeURIComponent(username)}`);
-
-      if (!response.ok) {
+      // Client-side username check - always available for demo
+      console.log('✅ Client-side checkUsernameAvailability for:', username);
+      
+      // Simple validation
+      if (username.length < 3) {
         return {
-          success: false,
-          error: {
-            code: 'CHECK_FAILED',
-            message: 'Unable to check username availability',
-          },
+          success: true,
+          data: {
+            available: false,
+            reason: 'Username must be at least 3 characters long'
+          }
         };
       }
 
-      const result = await response.json();
       return {
         success: true,
-        data: result,
+        data: {
+          available: true
+        }
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'CHECK_ERROR',
+          message: 'Unable to check username availability',
         },
       };
     }

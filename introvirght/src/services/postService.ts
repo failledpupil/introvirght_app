@@ -1,43 +1,86 @@
 import type { Post, CreatePostData, UpdatePostData, ApiResponse } from '../types';
 
-// API base URL - points to our backend server
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
-
-// Post service class for handling post-related API calls
+// Post service class for handling post-related operations (client-side)
 export class PostService {
+  /**
+   * Helper method to get stored posts from localStorage
+   */
+  private static getStoredPosts(): Post[] {
+    try {
+      const stored = localStorage.getItem('socialPosts');
+      if (!stored) return this.getDefaultPosts();
+      
+      const posts = JSON.parse(stored);
+      return posts.map((post: any) => ({
+        ...post,
+        createdAt: new Date(post.createdAt),
+        updatedAt: new Date(post.updatedAt),
+      }));
+    } catch {
+      return this.getDefaultPosts();
+    }
+  }
+
+  /**
+   * Get default demo posts
+   */
+  private static getDefaultPosts(): Post[] {
+    return [
+      {
+        id: 'demo-post-1',
+        content: 'Welcome to Introvirght! This is a mindful social platform where you can share your thoughts and connect with others on a journey of self-discovery. 🌱',
+        author: {
+          id: 'demo-user-system',
+          username: 'introvirght',
+          email: 'hello@introvirght.com'
+        },
+        likeCount: 5,
+        repostCount: 2,
+        isLikedByCurrentUser: false,
+        isRepostedByCurrentUser: false,
+        createdAt: new Date(Date.now() - 86400000), // 1 day ago
+        updatedAt: new Date(Date.now() - 86400000),
+      }
+    ];
+  }
+
   // Create a new post
   static async createPost(postData: CreatePostData): Promise<ApiResponse<Post>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side createPost:', postData);
       
-      const response = await fetch(`${API_BASE_URL}/posts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const existingPosts = this.getStoredPosts();
+      
+      const newPost: Post = {
+        id: 'post-' + Date.now(),
+        content: postData.content,
+        author: {
+          id: currentUser.id || 'demo-user',
+          username: currentUser.username || 'user',
+          email: currentUser.email || 'user@example.com'
         },
-        body: JSON.stringify(postData),
-      });
+        likeCount: 0,
+        repostCount: 0,
+        isLikedByCurrentUser: false,
+        isRepostedByCurrentUser: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      const updatedPosts = [newPost, ...existingPosts];
+      localStorage.setItem('socialPosts', JSON.stringify(updatedPosts));
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'CREATE_POST_FAILED', message: 'Failed to create post' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: newPost,
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to create post',
         },
       };
     }
@@ -46,37 +89,26 @@ export class PostService {
   // Get user's feed posts
   static async getFeedPosts(page: number = 1, limit: number = 20): Promise<ApiResponse<{ posts: Post[]; hasMore: boolean }>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side getFeedPosts, page:', page, 'limit:', limit);
       
+      const allPosts = this.getStoredPosts();
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedPosts = allPosts.slice(startIndex, endIndex);
 
-      
-      const offset = (page - 1) * limit;
-      
-      const response = await fetch(`${API_BASE_URL}/posts/feed?limit=${limit}&offset=${offset}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_FEED_FAILED', message: 'Failed to fetch feed' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: {
+          posts: paginatedPosts,
+          hasMore: endIndex < allPosts.length,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to fetch feed posts',
         },
       };
     }
@@ -84,74 +116,34 @@ export class PostService {
 
   // Get recent posts (public timeline)
   static async getRecentPosts(page: number = 1, limit: number = 20): Promise<ApiResponse<{ posts: Post[]; hasMore: boolean }>> {
-    try {
-      const token = localStorage.getItem('authToken');
-      
-
-      
-      const offset = (page - 1) * limit;
-      
-      const response = await fetch(`${API_BASE_URL}/posts/recent?limit=${limit}&offset=${offset}`, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`,
-        } : {},
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_POSTS_FAILED', message: 'Failed to fetch posts' },
-        };
-      }
-
-      const data = await response.json();
-      return {
-        success: true,
-        data: data.data,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
-        },
-      };
-    }
+    return this.getFeedPosts(page, limit); // Same as feed for client-side
   }
 
   // Get posts by user
   static async getUserPosts(username: string, page: number = 1, limit: number = 20): Promise<ApiResponse<{ posts: Post[]; hasMore: boolean }>> {
     try {
-      const token = localStorage.getItem('authToken');
-      const offset = (page - 1) * limit;
+      console.log('✅ Client-side getUserPosts for:', username);
       
-      const response = await fetch(`${API_BASE_URL}/posts/user/${username}?limit=${limit}&offset=${offset}`, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`,
-        } : {},
-      });
+      const allPosts = this.getStoredPosts();
+      const userPosts = allPosts.filter(post => post.author.username === username);
+      
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedPosts = userPosts.slice(startIndex, endIndex);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_USER_POSTS_FAILED', message: 'Failed to fetch user posts' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: {
+          posts: paginatedPosts,
+          hasMore: endIndex < userPosts.length,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to fetch user posts',
         },
       };
     }
@@ -160,33 +152,31 @@ export class PostService {
   // Get single post
   static async getPost(postId: string): Promise<ApiResponse<Post>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side getPost:', postId);
       
-      const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`,
-        } : {},
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
+      const posts = this.getStoredPosts();
+      const post = posts.find(p => p.id === postId);
+      
+      if (!post) {
         return {
           success: false,
-          error: errorData.error || { code: 'FETCH_POST_FAILED', message: 'Failed to fetch post' },
+          error: {
+            code: 'POST_NOT_FOUND',
+            message: 'Post not found',
+          },
         };
       }
 
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: post,
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to fetch post',
         },
       };
     }
@@ -195,36 +185,40 @@ export class PostService {
   // Update post
   static async updatePost(postId: string, updates: UpdatePostData): Promise<ApiResponse<Post>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side updatePost:', postId, updates);
       
-      const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
+      const posts = this.getStoredPosts();
+      const postIndex = posts.findIndex(p => p.id === postId);
+      
+      if (postIndex === -1) {
         return {
           success: false,
-          error: errorData.error || { code: 'UPDATE_POST_FAILED', message: 'Failed to update post' },
+          error: {
+            code: 'POST_NOT_FOUND',
+            message: 'Post not found',
+          },
         };
       }
 
-      const data = await response.json();
+      const updatedPost = {
+        ...posts[postIndex],
+        ...updates,
+        updatedAt: new Date(),
+      };
+      
+      posts[postIndex] = updatedPost;
+      localStorage.setItem('socialPosts', JSON.stringify(posts));
+
       return {
         success: true,
-        data: data.data,
+        data: updatedPost,
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to update post',
         },
       };
     }
@@ -233,22 +227,12 @@ export class PostService {
   // Delete post
   static async deletePost(postId: string): Promise<ApiResponse<void>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side deletePost:', postId);
       
-      const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'DELETE_POST_FAILED', message: 'Failed to delete post' },
-        };
-      }
+      const posts = this.getStoredPosts();
+      const filteredPosts = posts.filter(p => p.id !== postId);
+      
+      localStorage.setItem('socialPosts', JSON.stringify(filteredPosts));
 
       return {
         success: true,
@@ -257,8 +241,8 @@ export class PostService {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to delete post',
         },
       };
     }
@@ -267,34 +251,42 @@ export class PostService {
   // Like post
   static async likePost(postId: string): Promise<ApiResponse<{ liked: boolean; likeCount: number }>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side likePost:', postId);
       
-      const response = await fetch(`${API_BASE_URL}/posts/${postId}/like`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
+      const posts = this.getStoredPosts();
+      const postIndex = posts.findIndex(p => p.id === postId);
+      
+      if (postIndex === -1) {
         return {
           success: false,
-          error: errorData.error || { code: 'LIKE_POST_FAILED', message: 'Failed to like post' },
+          error: {
+            code: 'POST_NOT_FOUND',
+            message: 'Post not found',
+          },
         };
       }
 
-      const data = await response.json();
+      const post = posts[postIndex];
+      const wasLiked = post.isLikedByCurrentUser;
+      
+      post.isLikedByCurrentUser = !wasLiked;
+      post.likeCount += wasLiked ? -1 : 1;
+      
+      localStorage.setItem('socialPosts', JSON.stringify(posts));
+
       return {
         success: true,
-        data: data.data,
+        data: {
+          liked: post.isLikedByCurrentUser,
+          likeCount: post.likeCount,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to like post',
         },
       };
     }
@@ -303,34 +295,42 @@ export class PostService {
   // Repost
   static async repost(postId: string): Promise<ApiResponse<{ reposted: boolean; repostCount: number }>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side repost:', postId);
       
-      const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
+      const posts = this.getStoredPosts();
+      const postIndex = posts.findIndex(p => p.id === postId);
+      
+      if (postIndex === -1) {
         return {
           success: false,
-          error: errorData.error || { code: 'REPOST_FAILED', message: 'Failed to repost' },
+          error: {
+            code: 'POST_NOT_FOUND',
+            message: 'Post not found',
+          },
         };
       }
 
-      const data = await response.json();
+      const post = posts[postIndex];
+      const wasReposted = post.isRepostedByCurrentUser;
+      
+      post.isRepostedByCurrentUser = !wasReposted;
+      post.repostCount += wasReposted ? -1 : 1;
+      
+      localStorage.setItem('socialPosts', JSON.stringify(posts));
+
       return {
         success: true,
-        data: data.data,
+        data: {
+          reposted: post.isRepostedByCurrentUser,
+          repostCount: post.repostCount,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to repost',
         },
       };
     }
@@ -339,34 +339,33 @@ export class PostService {
   // Search posts
   static async searchPosts(query: string, page: number = 1, limit: number = 20): Promise<ApiResponse<{ posts: Post[]; hasMore: boolean }>> {
     try {
-      const token = localStorage.getItem('authToken');
-      const offset = (page - 1) * limit;
+      console.log('✅ Client-side searchPosts:', query);
       
-      const response = await fetch(`${API_BASE_URL}/posts/search?q=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}`, {
-        headers: token ? {
-          'Authorization': `Bearer ${token}`,
-        } : {},
-      });
+      const allPosts = this.getStoredPosts();
+      const searchTerm = query.toLowerCase();
+      
+      const matchingPosts = allPosts.filter(post => 
+        post.content.toLowerCase().includes(searchTerm) ||
+        post.author.username.toLowerCase().includes(searchTerm)
+      );
+      
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedPosts = matchingPosts.slice(startIndex, endIndex);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'SEARCH_POSTS_FAILED', message: 'Failed to search posts' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: {
+          posts: paginatedPosts,
+          hasMore: endIndex < matchingPosts.length,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to search posts',
         },
       };
     }

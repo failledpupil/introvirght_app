@@ -13,65 +13,62 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001
 
 export class DiaryService {
   /**
+   * Helper method to get stored entries from localStorage
+   */
+  private static getStoredEntries(): DiaryEntry[] {
+    try {
+      const stored = localStorage.getItem('diaryEntries');
+      if (!stored) return [];
+      
+      const entries = JSON.parse(stored);
+      return entries.map((entry: any) => ({
+        ...entry,
+        createdAt: new Date(entry.createdAt),
+        updatedAt: new Date(entry.updatedAt),
+      }));
+    } catch {
+      return [];
+    }
+  }
+  /**
    * Create a new diary entry
    */
   static async createEntry(entryData: CreateDiaryEntryData): Promise<ApiResponse<DiaryEntry>> {
     try {
-      // TEMPORARY: Bypass token for testing
-      const token = 'test-bypass-token';
+      console.log('✅ Client-side createEntry:', entryData);
       
-      console.log('Creating diary entry with data:', entryData);
-      console.log('API URL:', `${API_BASE_URL}/diary`);
+      // Get existing entries from localStorage
+      const existingEntries = this.getStoredEntries();
       
-      const response = await fetch(`${API_BASE_URL}/diary`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(entryData),
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      // Create new entry
+      const newEntry: DiaryEntry = {
+        id: 'entry-' + Date.now(),
+        title: entryData.title,
+        content: entryData.content,
+        mood: entryData.mood,
+        gratitude: entryData.gratitude || '',
+        highlights: entryData.highlights || '',
+        goals: entryData.goals || '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
       
-      // Log the full response for debugging
-      const responseClone = response.clone();
-      const responseText = await responseClone.text();
-      console.log('Full response text:', responseText);
+      // Add to existing entries
+      const updatedEntries = [newEntry, ...existingEntries];
       
-      if (!response.ok) {
-        let errorData;
-        try {
-          const responseText = await response.text();
-          console.error('Response text:', responseText);
-          errorData = responseText ? JSON.parse(responseText) : { error: { code: 'EMPTY_RESPONSE', message: 'Empty error response' } };
-        } catch (parseError) {
-          console.error('Failed to parse error response:', parseError);
-          errorData = { error: { code: 'PARSE_ERROR', message: `HTTP ${response.status}: ${response.statusText}` } };
-        }
-        console.error('API Error:', errorData);
-        return {
-          success: false,
-          error: errorData.error || { code: 'CREATE_ENTRY_FAILED', message: 'Failed to create diary entry' },
-        };
-      }
-
-      const data = await response.json();
+      // Store back to localStorage
+      localStorage.setItem('diaryEntries', JSON.stringify(updatedEntries));
+      
       return {
         success: true,
-        data: {
-          ...data.data,
-          createdAt: new Date(data.data.createdAt),
-          updatedAt: new Date(data.data.updatedAt),
-        },
+        data: newEntry,
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to save diary entry',
         },
       };
     }
@@ -82,60 +79,34 @@ export class DiaryService {
    */
   static async getEntries(page: number = 1, limit: number = 20): Promise<ApiResponse<DiaryEntriesResponse>> {
     try {
-      // TEMPORARY: Bypass token for testing
-      const token = 'test-bypass-token';
+      console.log('✅ Client-side getEntries, page:', page, 'limit:', limit);
       
-      console.log('Fetching diary entries...');
-      console.log('API URL:', `${API_BASE_URL}/diary?page=${page}&limit=${limit}`);
+      const allEntries = this.getStoredEntries();
       
-      const response = await fetch(`${API_BASE_URL}/diary?page=${page}&limit=${limit}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      console.log('getEntries response status:', response.status);
-      
-      // Log the full response for debugging
-      const responseClone = response.clone();
-      const responseText = await responseClone.text();
-      console.log('getEntries response text:', responseText);
-
-      if (!response.ok) {
-        let errorData;
-        try {
-          errorData = JSON.parse(responseText);
-        } catch {
-          errorData = { error: { code: 'PARSE_ERROR', message: 'Failed to parse error response' } };
-        }
-        console.error('API Error:', errorData);
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_ENTRIES_FAILED', message: 'Failed to fetch diary entries' },
-        };
-      }
-
-      const data = await response.json();
-      console.log('Parsed entries data:', data);
+      // Implement pagination
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      const paginatedEntries = allEntries.slice(startIndex, endIndex);
       
       return {
         success: true,
         data: {
-          entries: data.data.entries.map((entry: any) => ({
-            ...entry,
-            createdAt: new Date(entry.createdAt),
-            updatedAt: new Date(entry.updatedAt),
-          })),
-          pagination: data.data.pagination,
+          entries: paginatedEntries,
+          pagination: {
+            page,
+            limit,
+            total: allEntries.length,
+            hasMore: endIndex < allEntries.length,
+          },
         },
       };
     } catch (error) {
-      console.error('Network error fetching entries:', error);
+      console.error('Storage error fetching entries:', error);
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to fetch diary entries',
         },
       };
     }
@@ -146,37 +117,31 @@ export class DiaryService {
    */
   static async getEntry(entryId: string): Promise<ApiResponse<DiaryEntry>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side getEntry:', entryId);
       
-      const response = await fetch(`${API_BASE_URL}/diary/${entryId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
+      const entries = this.getStoredEntries();
+      const entry = entries.find(e => e.id === entryId);
+      
+      if (!entry) {
         return {
           success: false,
-          error: errorData.error || { code: 'FETCH_ENTRY_FAILED', message: 'Failed to fetch diary entry' },
+          error: {
+            code: 'ENTRY_NOT_FOUND',
+            message: 'Diary entry not found',
+          },
         };
       }
 
-      const data = await response.json();
       return {
         success: true,
-        data: {
-          ...data.data,
-          createdAt: new Date(data.data.createdAt),
-          updatedAt: new Date(data.data.updatedAt),
-        },
+        data: entry,
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to fetch diary entry',
         },
       };
     }
@@ -187,40 +152,41 @@ export class DiaryService {
    */
   static async updateEntry(entryId: string, updateData: UpdateDiaryEntryData): Promise<ApiResponse<DiaryEntry>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side updateEntry:', entryId, updateData);
       
-      const response = await fetch(`${API_BASE_URL}/diary/${entryId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(updateData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
+      const entries = this.getStoredEntries();
+      const entryIndex = entries.findIndex(e => e.id === entryId);
+      
+      if (entryIndex === -1) {
         return {
           success: false,
-          error: errorData.error || { code: 'UPDATE_ENTRY_FAILED', message: 'Failed to update diary entry' },
+          error: {
+            code: 'ENTRY_NOT_FOUND',
+            message: 'Diary entry not found',
+          },
         };
       }
 
-      const data = await response.json();
+      // Update the entry
+      const updatedEntry = {
+        ...entries[entryIndex],
+        ...updateData,
+        updatedAt: new Date(),
+      };
+      
+      entries[entryIndex] = updatedEntry;
+      localStorage.setItem('diaryEntries', JSON.stringify(entries));
+
       return {
         success: true,
-        data: {
-          ...data.data,
-          createdAt: new Date(data.data.createdAt),
-          updatedAt: new Date(data.data.updatedAt),
-        },
+        data: updatedEntry,
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to update diary entry',
         },
       };
     }
@@ -231,22 +197,12 @@ export class DiaryService {
    */
   static async deleteEntry(entryId: string): Promise<ApiResponse<void>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side deleteEntry:', entryId);
       
-      const response = await fetch(`${API_BASE_URL}/diary/${entryId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'DELETE_ENTRY_FAILED', message: 'Failed to delete diary entry' },
-        };
-      }
+      const entries = this.getStoredEntries();
+      const filteredEntries = entries.filter(e => e.id !== entryId);
+      
+      localStorage.setItem('diaryEntries', JSON.stringify(filteredEntries));
 
       return {
         success: true,
@@ -255,8 +211,8 @@ export class DiaryService {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to delete diary entry',
         },
       };
     }
@@ -267,115 +223,101 @@ export class DiaryService {
    */
   static async getMoodStats(): Promise<ApiResponse<MoodStats>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side getMoodStats');
       
-      const response = await fetch(`${API_BASE_URL}/diary/moods`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const entries = this.getStoredEntries();
+      const moodCounts: Record<string, number> = {};
+      
+      entries.forEach(entry => {
+        if (entry.mood) {
+          moodCounts[entry.mood] = (moodCounts[entry.mood] || 0) + 1;
+        }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_MOOD_STATS_FAILED', message: 'Failed to fetch mood statistics' },
-        };
-      }
-
-      const data = await response.json();
-      return {
-        success: true,
-        data: data.data,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
-        },
-      };
-    }
-  }
-
-  /**
-   * Search diary entries using semantic similarity
-   */
-  static async searchEntries(query: string, limit: number = 10): Promise<ApiResponse<{ query: string; entries: DiaryEntry[]; totalResults: number }>> {
-    try {
-      const token = localStorage.getItem('authToken');
-      
-      const response = await fetch(`${API_BASE_URL}/diary/search?q=${encodeURIComponent(query)}&limit=${limit}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'SEARCH_FAILED', message: 'Failed to search diary entries' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
         data: {
-          query: data.data.query,
-          entries: data.data.entries.map((entry: any) => ({
-            ...entry,
-            createdAt: new Date(entry.createdAt),
-            updatedAt: new Date(entry.updatedAt),
-          })),
-          totalResults: data.data.totalResults,
+          totalEntries: entries.length,
+          moodDistribution: moodCounts,
+          mostCommonMood: Object.keys(moodCounts).reduce((a, b) => moodCounts[a] > moodCounts[b] ? a : b, 'neutral'),
         },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to calculate mood statistics',
         },
       };
     }
   }
 
   /**
-   * Get AI insights from diary patterns
+   * Search diary entries using simple text search
    */
-  static async getInsights(): Promise<ApiResponse<any>> {
+  static async searchEntries(query: string, limit: number = 10): Promise<ApiResponse<{ query: string; entries: DiaryEntry[]; totalResults: number }>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side searchEntries:', query);
       
-      const response = await fetch(`${API_BASE_URL}/diary/insights`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const entries = this.getStoredEntries();
+      const searchTerm = query.toLowerCase();
+      
+      const matchingEntries = entries.filter(entry => 
+        entry.title.toLowerCase().includes(searchTerm) ||
+        entry.content.toLowerCase().includes(searchTerm) ||
+        entry.gratitude?.toLowerCase().includes(searchTerm) ||
+        entry.highlights?.toLowerCase().includes(searchTerm) ||
+        entry.goals?.toLowerCase().includes(searchTerm)
+      ).slice(0, limit);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'INSIGHTS_FAILED', message: 'Failed to get insights' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: {
+          query,
+          entries: matchingEntries,
+          totalResults: matchingEntries.length,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'STORAGE_ERROR',
+          message: 'Unable to search diary entries',
+        },
+      };
+    }
+  }
+
+  /**
+   * Get AI insights from diary patterns (client-side demo)
+   */
+  static async getInsights(): Promise<ApiResponse<any>> {
+    try {
+      console.log('✅ Client-side getInsights');
+      
+      const entries = this.getStoredEntries();
+      
+      return {
+        success: true,
+        data: {
+          totalEntries: entries.length,
+          averageWordsPerEntry: entries.length > 0 ? Math.round(entries.reduce((sum, entry) => sum + entry.content.split(' ').length, 0) / entries.length) : 0,
+          writingStreak: entries.length,
+          insights: [
+            "You're building a consistent writing habit!",
+            "Your entries show thoughtful reflection.",
+            "Keep documenting your journey of growth."
+          ]
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'STORAGE_ERROR',
+          message: 'Unable to generate insights',
         },
       };
     }
@@ -386,33 +328,31 @@ export class DiaryService {
    */
   static async getMoodTypes(): Promise<ApiResponse<MoodOption[]>> {
     try {
-      const token = localStorage.getItem('authToken');
+      console.log('✅ Client-side getMoodTypes');
       
-      const response = await fetch(`${API_BASE_URL}/diary/mood-types`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const moodTypes: MoodOption[] = [
+        { value: 'happy', label: 'Happy', emoji: '😊' },
+        { value: 'sad', label: 'Sad', emoji: '😢' },
+        { value: 'excited', label: 'Excited', emoji: '🎉' },
+        { value: 'anxious', label: 'Anxious', emoji: '😰' },
+        { value: 'calm', label: 'Calm', emoji: '😌' },
+        { value: 'frustrated', label: 'Frustrated', emoji: '😤' },
+        { value: 'grateful', label: 'Grateful', emoji: '🙏' },
+        { value: 'reflective', label: 'Reflective', emoji: '🤔' },
+        { value: 'energetic', label: 'Energetic', emoji: '⚡' },
+        { value: 'peaceful', label: 'Peaceful', emoji: '☮️' },
+      ];
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        return {
-          success: false,
-          error: errorData.error || { code: 'FETCH_MOOD_TYPES_FAILED', message: 'Failed to fetch mood types' },
-        };
-      }
-
-      const data = await response.json();
       return {
         success: true,
-        data: data.data,
+        data: moodTypes,
       };
     } catch (error) {
       return {
         success: false,
         error: {
-          code: 'NETWORK_ERROR',
-          message: 'Unable to connect to server',
+          code: 'MOOD_TYPES_ERROR',
+          message: 'Unable to fetch mood types',
         },
       };
     }
